@@ -32,10 +32,20 @@ public class Plant : MonoBehaviour
     [SerializeField] private float startScale = 0.5f;
     [SerializeField] private float overshoot = 1.5f; // Higher = more bounce
 
+    [Header("Water Hit Pulse")]
+    [SerializeField] private float pulseDuration = 0.5f;
+    [SerializeField] private float pulseCycleTime = 0.25f; // Time for one up-down cycle
+    [SerializeField] private float pulseScale = 1.1f; // How much bigger during pulse
+
     [Header("Current State")]
     [Tooltip("Current growth level (1 = first stage)")]
     [SerializeField] private int currentLevel = 1;
     [SerializeField] private float currentWater = 0f;
+
+    // Pulse state
+    private Tween pulseTween;
+    private float pulseEndTime;
+    private Vector3 originalStageScale;
 
     /// <summary>
     /// Current water amount toward next level
@@ -99,6 +109,15 @@ public class Plant : MonoBehaviour
         }
     }
 
+    private void Update()
+    {
+        // Check if pulse should stop
+        if (pulseTween != null && Time.time >= pulseEndTime)
+        {
+            StopPulse();
+        }
+    }
+
     /// <summary>
     /// Add water to this plant. If threshold is reached, evolves to next level.
     /// </summary>
@@ -108,15 +127,55 @@ public class Plant : MonoBehaviour
 
         currentWater += amount;
 
+        // Start or extend pulse
+        StartOrExtendPulse();
+
         if (currentWater >= waterPerLevel)
         {
             LevelUp();
         }
     }
 
+    private void StartOrExtendPulse()
+    {
+        // Always reset the timer
+        pulseEndTime = Time.time + pulseDuration;
+
+        // If already pulsing, just extend timer
+        if (pulseTween != null) return;
+
+        // Get current stage
+        int currentIndex = currentLevel - 1;
+        if (currentIndex < 0 || currentIndex >= growthStages.Length) return;
+        GameObject currentStage = growthStages[currentIndex];
+        if (currentStage == null) return;
+
+        Transform t = currentStage.transform;
+        originalStageScale = t.localScale;
+
+        // Always start from original scale
+        t.localScale = originalStageScale;
+
+        // Create looping pulse: scale up then down, repeat
+        pulseTween = t.DOScale(originalStageScale * pulseScale, pulseCycleTime / 2f)
+            .SetEase(Ease.InOutSine)
+            .SetLoops(-1, LoopType.Yoyo);
+    }
+
+    private void StopPulse()
+    {
+        if (pulseTween == null) return;
+
+        pulseTween.Kill();
+        pulseTween = null;
+    }
+
     private void LevelUp()
     {
         if (!CanGrow) return;
+
+        // Stop any active pulse before switching stages
+        StopPulse();
 
         // Disable current stage (convert 1-indexed to array index)
         int currentIndex = currentLevel - 1;
