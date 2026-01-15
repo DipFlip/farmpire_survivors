@@ -11,6 +11,10 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float gravity = -15f;
     [SerializeField] private float groundedGravity = -2f;
 
+    [Header("Camera")]
+    [Tooltip("Camera to use for relative movement. If empty, uses Camera.main")]
+    [SerializeField] private Transform cameraTransform;
+
     private CharacterController controller;
     private InputSystem_Actions input;
     private Vector3 velocity;
@@ -19,6 +23,11 @@ public class PlayerController : MonoBehaviour
     {
         controller = GetComponent<CharacterController>();
         input = new InputSystem_Actions();
+
+        if (cameraTransform == null && Camera.main != null)
+        {
+            cameraTransform = Camera.main.transform;
+        }
     }
 
     private void OnEnable()
@@ -45,9 +54,18 @@ public class PlayerController : MonoBehaviour
     private void HandleMovement()
     {
         Vector2 moveInput = input.Player.Move.ReadValue<Vector2>();
+        if (moveInput == Vector2.zero) return;
 
-        // Convert 2D input to 3D movement (top-down: X = left/right, Z = forward/back)
-        Vector3 move = new Vector3(moveInput.x, 0f, moveInput.y);
+        // Get camera's forward and right vectors, flattened to ground plane
+        Vector3 camForward = cameraTransform.forward;
+        Vector3 camRight = cameraTransform.right;
+        camForward.y = 0f;
+        camRight.y = 0f;
+        camForward.Normalize();
+        camRight.Normalize();
+
+        // Calculate movement relative to camera
+        Vector3 move = camForward * moveInput.y + camRight * moveInput.x;
         controller.Move(move * moveSpeed * Time.deltaTime);
     }
 

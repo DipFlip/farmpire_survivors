@@ -1,4 +1,5 @@
 using UnityEngine;
+using DG.Tweening;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -25,6 +26,11 @@ public class Plant : MonoBehaviour
     [Header("Effects")]
     [Tooltip("Particle effect prefab to spawn on level up (should auto-destroy or have Stop Action: Destroy)")]
     [SerializeField] private GameObject levelUpEffectPrefab;
+
+    [Header("Level Up Animation")]
+    [SerializeField] private float scaleAnimationDuration = 0.35f;
+    [SerializeField] private float startScale = 0.5f;
+    [SerializeField] private float overshoot = 1.5f; // Higher = more bounce
 
     [Header("Current State")]
     [Tooltip("Current growth level (1 = first stage)")]
@@ -123,11 +129,22 @@ public class Plant : MonoBehaviour
         currentLevel++;
         currentWater = 0f;
 
-        // Enable new stage
+        // Enable new stage with scale animation
         int newIndex = currentLevel - 1;
         if (growthStages[newIndex] != null)
         {
-            growthStages[newIndex].SetActive(true);
+            GameObject newStage = growthStages[newIndex];
+            Transform t = newStage.transform;
+
+            // Store original scale and start small
+            Vector3 originalScale = t.localScale;
+            t.localScale = originalScale * startScale;
+
+            newStage.SetActive(true);
+
+            // Animate to original scale with overshoot
+            t.DOScale(originalScale, scaleAnimationDuration)
+                .SetEase(Ease.OutBack, overshoot);
         }
 
         // Spawn level up effect
