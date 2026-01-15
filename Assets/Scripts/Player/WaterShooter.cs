@@ -124,15 +124,18 @@ public class WaterShooter : MonoBehaviour
         {
             if (!collider.CompareTag(plantTag)) continue;
 
-            // Only target plants that can still grow
-            Plant plant = collider.GetComponent<Plant>();
-            if (plant != null && !plant.CanGrow) continue;
+            // Get Plant component (may be on parent if collider is on growth stage child)
+            Plant plant = collider.GetComponentInParent<Plant>();
 
-            float distance = Vector3.Distance(transform.position, collider.transform.position);
+            // Only target plants that can still grow
+            if (plant == null || !plant.CanGrow) continue;
+
+            // Use the plant's transform (parent) for distance calculation
+            float distance = Vector3.Distance(transform.position, plant.transform.position);
             if (distance < closestDistance)
             {
                 closestDistance = distance;
-                currentTarget = collider.transform;
+                currentTarget = plant.transform;
             }
         }
     }

@@ -83,10 +83,10 @@ public class WaterProjectile : MonoBehaviour
     {
         if (!isActive) return;
 
-        // Check if we hit a plant
+        // Check if we hit a plant (collider may be on child, Plant script on parent)
         if (other.CompareTag("Plant"))
         {
-            Plant plant = other.GetComponent<Plant>();
+            Plant plant = other.GetComponentInParent<Plant>();
             if (plant != null)
             {
                 plant.ReceiveWater(waterAmount);
@@ -100,7 +100,7 @@ public class WaterProjectile : MonoBehaviour
         // Deliver water if target still exists and has Plant component
         if (target != null)
         {
-            Plant plant = target.GetComponent<Plant>();
+            Plant plant = target.GetComponentInParent<Plant>();
             if (plant != null)
             {
                 plant.ReceiveWater(waterAmount);
