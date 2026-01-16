@@ -13,8 +13,12 @@ using UnityEditor;
 /// - Children: Each growth level prefab with mesh + BoxCollider + "Plant" tag
 /// - Assign children to growthStages array in order
 /// </summary>
-public class Plant : MonoBehaviour
+public class Plant : MonoBehaviour, ITargetable
 {
+    // ITargetable implementation
+    public bool CanReceive => CanGrow;
+    public void ReceiveAmount(float amount) => ReceiveWater(amount);
+
     [Header("Growth Stages")]
     [Tooltip("Child GameObjects for each growth level (assign in order: Lv1, Lv2, Lv3, etc.)")]
     [SerializeField] private GameObject[] growthStages;

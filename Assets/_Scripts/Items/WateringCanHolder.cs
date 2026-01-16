@@ -75,7 +75,7 @@ public class WateringCanHolder : MonoBehaviour
             WateringCan can = collider.GetComponent<WateringCan>();
             if (can == null) can = collider.GetComponentInParent<WateringCan>();
 
-            if (can != null && can.CurrentState == WateringCan.State.Pickup)
+            if (can != null && can.CurrentState == ItemState.Pickup)
             {
                 PickupCan(can);
             }

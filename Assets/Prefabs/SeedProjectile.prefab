@@ -14,7 +14,7 @@ GameObject:
   - component: {fileID: 5484547949038853731}
   - component: {fileID: 6691448411116172768}
   m_Layer: 0
-  m_Name: WaterDroplet
+  m_Name: SeedProjectile
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -68,7 +68,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 569c2a52194b646779ead63cbf74bb12, type: 2}
+  - {fileID: 2100000, guid: 35a0c6bda85d041efb86ee65dc603569, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0

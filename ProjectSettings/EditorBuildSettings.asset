@@ -6,7 +6,7 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/_Scenes/Demo Scene.unity
+    path: Assets/_Scenes/FarmpireSurvivorGameScene.unity
     guid: 3d246525594cef0479fc980a760f4785
   m_configObjects:
     com.unity.input.settings: {fileID: 11400000, guid: 00e6cc6c85f8f452c8648989850c9528, type: 2}
