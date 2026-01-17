@@ -6,6 +6,7 @@ public class PlayerController : MonoBehaviour
     [Header("Movement")]
     [SerializeField] private float moveSpeed = 5f;
     [SerializeField] private float jumpHeight = 1.5f;
+    [SerializeField] private float rotationSpeed = 720f;
 
     [Header("Gravity")]
     [SerializeField] private float gravity = -15f;
@@ -67,6 +68,10 @@ public class PlayerController : MonoBehaviour
         // Calculate movement relative to camera
         Vector3 move = camForward * moveInput.y + camRight * moveInput.x;
         controller.Move(move * moveSpeed * Time.deltaTime);
+
+        // Rotate player to face movement direction
+        Quaternion targetRotation = Quaternion.LookRotation(move);
+        transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, rotationSpeed * Time.deltaTime);
     }
 
     private void HandleGravityAndJump()

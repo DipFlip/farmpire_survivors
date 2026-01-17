@@ -30,6 +30,11 @@ public abstract class HoldableItem : MonoBehaviour, IHoldableItem
     [SerializeField] protected float pulseDuration = 0.15f;
     [SerializeField] protected float pulseScale = 1.2f;
 
+    [Header("Sound")]
+    [SerializeField] protected AudioClip fireSound;
+    [SerializeField] protected float minPitch = 0.9f;
+    [SerializeField] protected float maxPitch = 1.1f;
+
     [Header("Current State")]
     [SerializeField] protected ItemState currentState = ItemState.Pickup;
 
@@ -207,6 +212,12 @@ public abstract class HoldableItem : MonoBehaviour, IHoldableItem
 
         // Pulse animation
         PlayFirePulse();
+
+        // Play sound with random pitch
+        if (fireSound != null && SoundManager.Instance != null)
+        {
+            SoundManager.Instance.PlaySound(fireSound, minPitch, maxPitch);
+        }
     }
 
     protected void PlayFirePulse()

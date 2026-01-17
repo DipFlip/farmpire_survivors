@@ -31,6 +31,11 @@ public class Plant : MonoBehaviour, ITargetable
     [Tooltip("Particle effect prefab to spawn on level up (should auto-destroy or have Stop Action: Destroy)")]
     [SerializeField] private GameObject levelUpEffectPrefab;
 
+    [Header("Sound")]
+    [SerializeField] private AudioClip levelUpSound;
+    [SerializeField] private float minPitch = 0.9f;
+    [SerializeField] private float maxPitch = 1.1f;
+
     [Header("Level Up Animation")]
     [SerializeField] private float scaleAnimationDuration = 0.35f;
     [SerializeField] private float startScale = 0.5f;
@@ -210,8 +215,17 @@ public class Plant : MonoBehaviour, ITargetable
                 .SetEase(Ease.OutBack, overshoot);
         }
 
-        // Spawn level up effect
+        // Spawn level up effect and sound
         SpawnLevelUpEffect();
+        PlayLevelUpSound();
+    }
+
+    private void PlayLevelUpSound()
+    {
+        if (levelUpSound != null && SoundManager.Instance != null)
+        {
+            SoundManager.Instance.PlaySound(levelUpSound, minPitch, maxPitch);
+        }
     }
 
     private void SpawnLevelUpEffect()
