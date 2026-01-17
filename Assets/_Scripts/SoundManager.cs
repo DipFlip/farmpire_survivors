@@ -39,7 +39,7 @@ public class SoundManager : MonoBehaviour
         return;
       }
       float pitch = Random.Range(minPitch, maxPitch);
-      Debug.Log($"[SoundManager] Playing '{clip.name}' with pitch {pitch:F2}, volume: {effectsSource.volume}, mute: {effectsSource.mute}, AudioListener exists: {FindObjectOfType<AudioListener>() != null}");
+      Debug.Log($"[SoundManager] Playing '{clip.name}' with pitch {pitch:F2}, volume: {effectsSource.volume}, mute: {effectsSource.mute}, AudioListener exists: {FindAnyObjectByType<AudioListener>() != null}");
       effectsSource.pitch = pitch;
       effectsSource.PlayOneShot(clip, 1f);
     }
