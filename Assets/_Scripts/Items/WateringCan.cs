@@ -3,7 +3,7 @@ using UnityEngine;
 /// <summary>
 /// A watering can that targets Plants and shoots water projectiles.
 /// </summary>
-public class WateringCan : HoldableItem
+public class WateringCan : ProjectileHoldableItem
 {
     protected override string TargetTag => "Plant";
 

@@ -3,7 +3,7 @@ using UnityEngine;
 /// <summary>
 /// A seed bag that targets dug DigSites and shoots seed projectiles.
 /// </summary>
-public class SeedBag : HoldableItem
+public class SeedBag : ProjectileHoldableItem
 {
     protected override string TargetTag => "DigSite";
 

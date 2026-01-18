@@ -3,7 +3,7 @@ using UnityEngine;
 /// <summary>
 /// A shovel that targets undig DigSites and shoots dig projectiles.
 /// </summary>
-public class Shovel : HoldableItem
+public class Shovel : ProjectileHoldableItem
 {
     protected override string TargetTag => "DigSite";
 
