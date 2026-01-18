@@ -56,7 +56,7 @@ MonoBehaviour:
   plantPrefab: {fileID: 2984836918256758698, guid: 013afe963b98e4eb9b0d3e3f227a8f29, type: 3}
   plantSpawnOffset: {x: 0, y: 0, z: 0}
   digCompleteEffectPrefab: {fileID: 8525990746615576120, guid: 6ad5ec40a480a4fdeb58c311117eea81, type: 3}
-  plantSpawnEffectPrefab: {fileID: 0}
+  plantSpawnEffectPrefab: {fileID: 4939804138595413648, guid: c1448a8d9044a4de6988212920e97c42, type: 3}
   pulseDuration: 0.5
   pulseCycleTime: 0.25
   pulseScale: 1.1
