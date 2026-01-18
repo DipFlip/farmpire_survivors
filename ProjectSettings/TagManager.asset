@@ -8,6 +8,7 @@ TagManager:
   - FxTemporaire
   - DigSite
   - Tree
+  - Collectable
   layers:
   - Default
   - TransparentFX
@@ -17,7 +18,7 @@ TagManager:
   - UI
   - Player
   - Animal
-  - 
+  - Collectables
   - 
   - 
   - 

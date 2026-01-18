@@ -75,7 +75,6 @@ public class Tree : MonoBehaviour, ITargetable
     private Tween pulseTween;
     private float pulseEndTime;
     private Vector3 originalStageScale;
-    private Collider treeCollider;
 
     /// <summary>
     /// Current chop damage accumulated
@@ -86,6 +85,11 @@ public class Tree : MonoBehaviour, ITargetable
     /// Total chop needed to fell the tree
     /// </summary>
     public float ChopRequired => chopRequired;
+
+    /// <summary>
+    /// Remaining health before tree falls
+    /// </summary>
+    public float ChopHealth => Mathf.Max(0f, chopRequired - currentChop);
 
     /// <summary>
     /// Progress from 0 to 1 toward felling
@@ -111,7 +115,6 @@ public class Tree : MonoBehaviour, ITargetable
 
     private void Start()
     {
-        treeCollider = GetComponent<Collider>();
         UpdateVisibleStage();
 
         if (stumpVisual != null)
@@ -210,30 +213,32 @@ public class Tree : MonoBehaviour, ITargetable
     {
         if (isFallen) return;
 
+        Debug.Log($"[Tree] {name} falling! ChopHealth: {ChopHealth}");
+
         isFallen = true;
         StopPulse();
-
-        // Disable collider to prevent further targeting
-        if (treeCollider != null)
-        {
-            treeCollider.enabled = false;
-        }
 
         PlayFallSound();
         SpawnEffect(fallEffectPrefab);
 
         // Find the active stage to animate falling
         GameObject activeStage = null;
-        if (damageStages != null)
+        if (damageStages != null && damageStages.Length > 0)
         {
+            Debug.Log($"[Tree] damageStages has {damageStages.Length} elements");
             foreach (var stage in damageStages)
             {
                 if (stage != null && stage.activeSelf)
                 {
                     activeStage = stage;
+                    Debug.Log($"[Tree] Found active stage: {stage.name}");
                     break;
                 }
             }
+        }
+        else
+        {
+            Debug.LogWarning($"[Tree] {name}: damageStages array is empty! Assign your tree model to damageStages[0] in the Inspector.");
         }
 
         if (activeStage != null)
@@ -244,12 +249,14 @@ public class Tree : MonoBehaviour, ITargetable
             Vector3 fallDirection = new Vector3(Random.Range(-1f, 1f), 0, Random.Range(-1f, 1f)).normalized;
             Vector3 fallAxis = Vector3.Cross(Vector3.up, fallDirection);
 
+            Debug.Log($"[Tree] Animating fall for {activeStage.name}");
             t.DORotate(fallAxis * fallAngle, fallDuration, RotateMode.LocalAxisAdd)
                 .SetEase(Ease.InQuad)
                 .OnComplete(OnTreeFallen);
         }
         else
         {
+            Debug.LogWarning($"[Tree] {name}: No active stage found to animate! Skipping to OnTreeFallen.");
             OnTreeFallen();
         }
     }
@@ -346,11 +353,6 @@ public class Tree : MonoBehaviour, ITargetable
         StopPulse();
         isFallen = false;
         currentChop = 0f;
-
-        if (treeCollider != null)
-        {
-            treeCollider.enabled = true;
-        }
 
         if (stumpVisual != null)
         {
