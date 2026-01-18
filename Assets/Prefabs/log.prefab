@@ -54,8 +54,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 0.2105565, y: 0.2089209, z: 0.89014626}
-  m_Center: {x: 0.117185354, y: 0.10033852, z: 0.453784}
+  m_Size: {x: 0.2105565, y: 0.2089209, z: 0.8568239}
+  m_Center: {x: 0.117185354, y: 0.10033852, z: 0.08141613}
 --- !u!54 &1358554691476777401
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -95,6 +95,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a409d693227e54eacb029cc2a03c38ce, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CollectableItem
+  itemType: log
   collectDuration: 0.5
   shrinkDuration: 0.2
   settleTime: 1

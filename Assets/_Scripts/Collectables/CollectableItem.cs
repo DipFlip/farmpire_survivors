@@ -9,6 +9,7 @@ using DG.Tweening;
 ///
 /// Setup:
 /// - Add "Collectable" tag
+/// - Set itemType to identify this collectable (e.g., "log", "tomato", "rock")
 /// - Requires Rigidbody component
 /// - Requires Collider component
 /// </summary>
@@ -22,6 +23,15 @@ public class CollectableItem : MonoBehaviour
         BeingCollected, // Flying toward collector
         Collected       // Collection complete, about to be destroyed
     }
+
+    [Header("Item Type")]
+    [Tooltip("Identifier for this collectable type (e.g., 'log', 'tomato', 'rock')")]
+    [SerializeField] private string itemType = "item";
+
+    /// <summary>
+    /// The type identifier for this collectable
+    /// </summary>
+    public string ItemType => itemType;
 
     [Header("Collection Animation")]
     [Tooltip("Time to fly toward collector")]

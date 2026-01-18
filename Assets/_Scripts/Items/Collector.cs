@@ -17,9 +17,9 @@ public class Collector : CollectorHoldableItem
     [SerializeField] private float collectMinPitch = 0.9f;
     [SerializeField] private float collectMaxPitch = 1.1f;
 
-    protected override void OnItemCollected()
+    protected override void OnItemCollected(string itemType)
     {
-        base.OnItemCollected();
+        base.OnItemCollected(itemType);
 
         // Play collection-specific sound
         if (collectSound != null && SoundManager.Instance != null)

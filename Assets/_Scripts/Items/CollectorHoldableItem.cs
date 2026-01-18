@@ -4,6 +4,7 @@ using UnityEngine;
 /// <summary>
 /// Abstract base class for holdable items that collect CollectableItems.
 /// Does NOT fire projectiles. Detects collectables in range and pulls them in.
+/// Tracks collected items by type for use with deposit stations.
 ///
 /// Subclasses can customize collection behavior and sounds.
 /// </summary>
@@ -13,19 +14,22 @@ public abstract class CollectorHoldableItem : HoldableItemBase
     [Tooltip("Range to detect collectables")]
     [SerializeField] protected float collectionRange = 3f;
 
-    [Tooltip("Maximum items this collector can hold")]
+    [Tooltip("Maximum total items this collector can hold")]
     [SerializeField] protected int maxCapacity = 6;
 
     [Tooltip("Delay between pulling items")]
     [SerializeField] protected float pullDelay = 0.2f;
 
-    // Runtime
+    // Runtime - track items by type
+    protected Dictionary<string, int> collectedItems = new Dictionary<string, int>();
     protected int currentCount = 0;
-    protected List<CollectableItem> beingCollected = new List<CollectableItem>();
+
+    // Track items being collected (need to store type before item is destroyed)
+    protected List<(CollectableItem item, string itemType)> beingCollected = new List<(CollectableItem, string)>();
     protected float lastPullTime;
 
     /// <summary>
-    /// Number of items currently collected
+    /// Total number of items currently collected
     /// </summary>
     public int CurrentCount => currentCount;
 
@@ -44,8 +48,12 @@ public abstract class CollectorHoldableItem : HoldableItemBase
     /// </summary>
     public float FillProgress => maxCapacity > 0 ? (float)currentCount / maxCapacity : 0f;
 
+    /// <summary>
+    /// Get a read-only view of collected items by type
+    /// </summary>
+    public IReadOnlyDictionary<string, int> CollectedItems => collectedItems;
+
     // Override targeting - collectors don't target anything specific
-    // They detect collectables differently
     protected override string TargetTag => "Collectable";
 
     protected override bool IsValidTarget(GameObject targetObj)
@@ -56,13 +64,11 @@ public abstract class CollectorHoldableItem : HoldableItemBase
 
     protected override void Update()
     {
-        // Call base for orbit and rotation, but skip target finding
         if (currentState != ItemState.Equipped || holder == null) return;
 
         UpdateOrbitPosition();
         UpdateRotation();
 
-        // Collector-specific logic
         PullCollectables();
         CheckCollectionProgress();
     }
@@ -72,7 +78,6 @@ public abstract class CollectorHoldableItem : HoldableItemBase
         if (!HasSpace) return;
         if (Time.time < lastPullTime + pullDelay) return;
 
-        // Find collectables in range
         Collider[] colliders = Physics.OverlapSphere(transform.position, collectionRange);
 
         foreach (var col in colliders)
@@ -81,15 +86,26 @@ public abstract class CollectorHoldableItem : HoldableItemBase
 
             CollectableItem item = col.GetComponent<CollectableItem>();
             if (item == null || !item.CanBeCollected) continue;
-            if (beingCollected.Contains(item)) continue;
 
-            // Check if we still have space (accounting for items being collected)
+            // Check if already being collected
+            bool alreadyCollecting = false;
+            foreach (var pair in beingCollected)
+            {
+                if (pair.item == item)
+                {
+                    alreadyCollecting = true;
+                    break;
+                }
+            }
+            if (alreadyCollecting) continue;
+
+            // Check if we still have space
             int pendingCount = currentCount + beingCollected.Count;
             if (pendingCount >= maxCapacity) break;
 
-            // Start collecting this item
+            // Start collecting - store type now before item is destroyed
             item.StartCollection(transform);
-            beingCollected.Add(item);
+            beingCollected.Add((item, item.ItemType));
             lastPullTime = Time.time;
 
             // Pull one at a time for nicer visual
@@ -101,13 +117,13 @@ public abstract class CollectorHoldableItem : HoldableItemBase
     {
         for (int i = beingCollected.Count - 1; i >= 0; i--)
         {
-            CollectableItem item = beingCollected[i];
+            var (item, itemType) = beingCollected[i];
 
             if (item == null || item.State == CollectableItem.CollectableState.Collected)
             {
-                // Item was collected
+                // Item was collected - add to inventory by type
                 beingCollected.RemoveAt(i);
-                OnItemCollected();
+                OnItemCollected(itemType);
             }
             else if (item.State == CollectableItem.CollectableState.Idle)
             {
@@ -117,8 +133,18 @@ public abstract class CollectorHoldableItem : HoldableItemBase
         }
     }
 
-    protected virtual void OnItemCollected()
+    protected virtual void OnItemCollected(string itemType)
     {
+        // Add to type-specific count
+        if (collectedItems.ContainsKey(itemType))
+        {
+            collectedItems[itemType]++;
+        }
+        else
+        {
+            collectedItems[itemType] = 1;
+        }
+
         currentCount++;
         PlayPulse();
         PlayActionSound();
@@ -127,7 +153,7 @@ public abstract class CollectorHoldableItem : HoldableItemBase
     public override void Drop(Vector3 position)
     {
         // Cancel any in-progress collections
-        foreach (var item in beingCollected)
+        foreach (var (item, _) in beingCollected)
         {
             if (item != null)
             {
@@ -140,28 +166,93 @@ public abstract class CollectorHoldableItem : HoldableItemBase
     }
 
     /// <summary>
-    /// Empty the collector (for depositing items)
+    /// Get count of a specific item type
     /// </summary>
-    public virtual void EmptyCollector()
+    public int GetItemCount(string itemType)
     {
-        currentCount = 0;
+        return collectedItems.TryGetValue(itemType, out int count) ? count : 0;
     }
 
     /// <summary>
-    /// Remove a specific number of items
+    /// Check if collector has at least the specified amount of an item type
     /// </summary>
-    public virtual int RemoveItems(int count)
+    public bool HasItems(string itemType, int amount)
     {
-        int removed = Mathf.Min(count, currentCount);
-        currentCount -= removed;
-        return removed;
+        return GetItemCount(itemType) >= amount;
+    }
+
+    /// <summary>
+    /// Check if collector has all required items (for deposit stations)
+    /// </summary>
+    public bool HasAllItems(Dictionary<string, int> requirements)
+    {
+        foreach (var req in requirements)
+        {
+            if (GetItemCount(req.Key) < req.Value)
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Remove specific amount of an item type. Returns actual amount removed.
+    /// </summary>
+    public int RemoveItems(string itemType, int amount)
+    {
+        if (!collectedItems.TryGetValue(itemType, out int current))
+        {
+            return 0;
+        }
+
+        int toRemove = Mathf.Min(amount, current);
+        collectedItems[itemType] = current - toRemove;
+        currentCount -= toRemove;
+
+        // Clean up empty entries
+        if (collectedItems[itemType] <= 0)
+        {
+            collectedItems.Remove(itemType);
+        }
+
+        return toRemove;
+    }
+
+    /// <summary>
+    /// Remove multiple item types at once (for deposit stations)
+    /// Returns true if all items were removed, false if requirements not met
+    /// </summary>
+    public bool RemoveItems(Dictionary<string, int> requirements)
+    {
+        // First check if we have everything
+        if (!HasAllItems(requirements))
+        {
+            return false;
+        }
+
+        // Remove all
+        foreach (var req in requirements)
+        {
+            RemoveItems(req.Key, req.Value);
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Empty the collector completely
+    /// </summary>
+    public virtual void EmptyCollector()
+    {
+        collectedItems.Clear();
+        currentCount = 0;
     }
 
     protected override void OnDrawGizmosSelected()
     {
         base.OnDrawGizmosSelected();
 
-        // Draw collection range
         Gizmos.color = new Color(0f, 1f, 0.5f, 0.3f);
         Gizmos.DrawWireSphere(transform.position, collectionRange);
     }
