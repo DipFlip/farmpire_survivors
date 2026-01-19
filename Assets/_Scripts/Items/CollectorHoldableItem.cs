@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 /// <summary>
 /// Abstract base class for holdable items that collect CollectableItems.
@@ -26,6 +27,9 @@ public abstract class CollectorHoldableItem : HoldableItemBase
     [Header("Deposit Settings")]
     [Tooltip("Time between depositing each item")]
     [SerializeField] protected float depositInterval = 0.5f;
+
+    [Header("UI")]
+    [SerializeField] protected Slider fillSlider;
 
     // Runtime - track items by type
     protected Dictionary<string, int> collectedItems = new Dictionary<string, int>();
@@ -78,6 +82,14 @@ public abstract class CollectorHoldableItem : HoldableItemBase
             rb.isKinematic = true;
             rb.useGravity = false;
         }
+
+        UpdateFillSlider();
+    }
+
+    protected void UpdateFillSlider()
+    {
+        if (fillSlider == null) return;
+        fillSlider.value = FillProgress;
     }
 
     protected override bool IsValidTarget(GameObject targetObj)
@@ -232,6 +244,7 @@ public abstract class CollectorHoldableItem : HoldableItemBase
         }
 
         currentCount++;
+        UpdateFillSlider();
         PlayPulse();
         PlayActionSound();
     }
@@ -302,6 +315,7 @@ public abstract class CollectorHoldableItem : HoldableItemBase
             collectedItems.Remove(itemType);
         }
 
+        UpdateFillSlider();
         return toRemove;
     }
 
@@ -333,6 +347,7 @@ public abstract class CollectorHoldableItem : HoldableItemBase
     {
         collectedItems.Clear();
         currentCount = 0;
+        UpdateFillSlider();
     }
 
     protected override void OnDrawGizmosSelected()
