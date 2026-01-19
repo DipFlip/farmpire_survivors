@@ -76,7 +76,7 @@ Material:
     - _DebugDissolveTime: 0
     - _DirLightScreenAtten: 1.19
     - _DirectLightingMix: 1
-    - _DirectLightingRamp: 0.292
+    - _DirectLightingRamp: 0.439
     - _DissolveSmooth: 0.15
     - _Distort: 0.1
     - _DoubleDissolve: 0
@@ -85,7 +85,7 @@ Material:
     - _FadeAlongU: 0
     - _HdrBoost: 0
     - _HdrMultiply: 0
-    - _IndirectLightingMix: 1
+    - _IndirectLightingMix: 0.448
     - _InvertDissolveTex: 0
     - _LightingWorldPosStrength: 1
     - _OVERLAYBLEND: 0
@@ -121,7 +121,7 @@ Material:
     - _DistortScrolling: {r: 0, g: 0, b: 1, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 0}
     - _OverlayTex_Scroll: {r: 0.1, g: 0.1, b: 1, a: 1}
-    - _ShadowColor: {r: 0.764151, g: 0.764151, b: 0.764151, a: 1}
+    - _ShadowColor: {r: 0.754717, g: 0.754717, b: 0.754717, a: 1}
     - _SoftParticlesFadeDistance: {r: 0, g: 1, b: 0, a: 0}
     - _TEST: {r: -0.22, g: 0, b: 0, a: 0}
   m_BuildTextureStacks: []

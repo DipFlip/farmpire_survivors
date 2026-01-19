@@ -10,11 +10,10 @@ using DG.Tweening;
 /// Triggers events when requirements are met and items are deposited.
 ///
 /// Setup:
-/// - Add collider (trigger) for detection range
+/// - Configure detection range
 /// - Configure required items in Inspector
 /// - Hook up OnDepositComplete event for what happens after deposit
 /// </summary>
-[RequireComponent(typeof(Collider))]
 public class DepositStation : MonoBehaviour
 {
     [Serializable]
@@ -35,14 +34,25 @@ public class DepositStation : MonoBehaviour
     [SerializeField] private List<ItemRequirement> requirements = new List<ItemRequirement>();
 
     [Header("Behavior")]
-    [Tooltip("Auto-deposit when player with valid items enters range")]
-    [SerializeField] private bool autoDeposit = true;
-
     [Tooltip("Can be used multiple times (resets after completion)")]
     [SerializeField] private bool repeatable = false;
 
-    [Tooltip("Accept partial deposits (items deposited even if requirements not fully met)")]
-    [SerializeField] private bool allowPartialDeposit = true;
+    [Header("Spawn On Complete")]
+    [Tooltip("Prefab to spawn when deposit is complete")]
+    [SerializeField] private GameObject spawnOnCompletePrefab;
+
+    [Tooltip("Offset from station position to spawn the prefab")]
+    [SerializeField] private Vector3 spawnOffset = Vector3.zero;
+
+    [Tooltip("Use station's rotation for spawned object")]
+    [SerializeField] private bool useStationRotation = true;
+
+    [Header("Destruction")]
+    [Tooltip("Destroy this station after completion")]
+    [SerializeField] private bool destroyOnComplete = false;
+
+    [Tooltip("Delay before destroying (allows effects to play)")]
+    [SerializeField] private float destroyDelay = 0.5f;
 
     [Header("Visual Feedback")]
     [SerializeField] private GameObject incompleteVisual;
@@ -68,8 +78,6 @@ public class DepositStation : MonoBehaviour
     public UnityEvent OnDepositComplete;
 
     private bool isComplete = false;
-    private Collider stationCollider;
-    private CollectorHoldableItem currentCollector;
 
     /// <summary>
     /// Whether all requirements have been met
@@ -120,102 +128,55 @@ public class DepositStation : MonoBehaviour
 
     private void Start()
     {
-        stationCollider = GetComponent<Collider>();
-        if (!stationCollider.isTrigger)
-        {
-            stationCollider.isTrigger = true;
-        }
-
         UpdateVisuals();
     }
 
-    private void OnTriggerEnter(Collider other)
-    {
-        if (isComplete && !repeatable) return;
-
-        // Check if it's a Collector
-        CollectorHoldableItem collector = other.GetComponent<CollectorHoldableItem>();
-        if (collector == null) return;
-
-        currentCollector = collector;
-
-        if (autoDeposit)
-        {
-            TryDeposit(collector);
-        }
-    }
-
-    private void OnTriggerStay(Collider other)
-    {
-        if (!autoDeposit) return;
-        if (isComplete && !repeatable) return;
-
-        CollectorHoldableItem collector = other.GetComponent<CollectorHoldableItem>();
-        if (collector == null || collector != currentCollector) return;
-
-        // Keep trying to deposit while in range
-        TryDeposit(collector);
-    }
-
-    private void OnTriggerExit(Collider other)
-    {
-        CollectorHoldableItem collector = other.GetComponent<CollectorHoldableItem>();
-        if (collector != null && collector == currentCollector)
-        {
-            currentCollector = null;
-        }
-    }
-
     /// <summary>
-    /// Attempt to deposit items from a collector
+    /// Receive an item from a Collector. Called by CollectorHoldableItem.
     /// </summary>
-    public bool TryDeposit(CollectorHoldableItem collector)
+    public bool ReceiveItem(string itemType, int amount)
     {
-        if (collector == null) return false;
         if (isComplete && !repeatable) return false;
 
-        bool anyDeposited = false;
-
+        // Find matching requirement
         foreach (var req in requirements)
         {
+            if (req.itemType != itemType) continue;
             if (req.currentAmount >= req.amount) continue;
 
             int needed = req.amount - req.currentAmount;
-            int available = collector.GetItemCount(req.itemType);
+            int toAdd = Mathf.Min(needed, amount);
 
-            if (available <= 0) continue;
+            req.currentAmount += toAdd;
+            Debug.Log($"[DepositStation] Received {toAdd}x {itemType} ({req.currentAmount}/{req.amount})");
 
-            int toDeposit = Mathf.Min(needed, available);
-
-            if (!allowPartialDeposit && available < needed)
-            {
-                continue;
-            }
-
-            // Remove from collector and add to station
-            int removed = collector.RemoveItems(req.itemType, toDeposit);
-            req.currentAmount += removed;
-
-            if (removed > 0)
-            {
-                anyDeposited = true;
-                Debug.Log($"[DepositStation] Deposited {removed}x {req.itemType} ({req.currentAmount}/{req.amount})");
-            }
-        }
-
-        if (anyDeposited)
-        {
             PlayDepositFeedback();
             OnDeposit?.Invoke();
 
-            // Check if complete
             if (CheckComplete())
             {
                 CompleteDeposit();
             }
+
+            return true;
         }
 
-        return anyDeposited;
+        return false; // Item type not needed
+    }
+
+    /// <summary>
+    /// Check if this station needs a specific item type
+    /// </summary>
+    public bool NeedsItem(string itemType)
+    {
+        foreach (var req in requirements)
+        {
+            if (req.itemType == itemType && req.currentAmount < req.amount)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     private bool CheckComplete()
@@ -237,6 +198,7 @@ public class DepositStation : MonoBehaviour
 
         PlayCompleteFeedback();
         UpdateVisuals();
+        SpawnCompletePrefab();
         OnDepositComplete?.Invoke();
 
         if (repeatable)
@@ -244,6 +206,21 @@ public class DepositStation : MonoBehaviour
             // Reset for next use
             ResetStation();
         }
+        else if (destroyOnComplete)
+        {
+            Destroy(gameObject, destroyDelay);
+        }
+    }
+
+    private void SpawnCompletePrefab()
+    {
+        if (spawnOnCompletePrefab == null) return;
+
+        Vector3 spawnPos = transform.position + spawnOffset;
+        Quaternion spawnRot = useStationRotation ? transform.rotation : Quaternion.identity;
+
+        GameObject spawned = Instantiate(spawnOnCompletePrefab, spawnPos, spawnRot);
+        Debug.Log($"[DepositStation] Spawned {spawnOnCompletePrefab.name} at {spawnPos}");
     }
 
     private void PlayDepositFeedback()

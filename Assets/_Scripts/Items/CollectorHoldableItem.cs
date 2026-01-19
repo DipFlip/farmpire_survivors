@@ -5,9 +5,12 @@ using UnityEngine;
 /// Abstract base class for holdable items that collect CollectableItems.
 /// Does NOT fire projectiles. Detects collectables in range and pulls them in.
 /// Tracks collected items by type for use with deposit stations.
+/// Also detects DepositStations and transfers items to them over time.
 ///
 /// Subclasses can customize collection behavior and sounds.
+/// Requires Rigidbody for trigger detection.
 /// </summary>
+[RequireComponent(typeof(Rigidbody))]
 public abstract class CollectorHoldableItem : HoldableItemBase
 {
     [Header("Collection Settings")]
@@ -17,8 +20,12 @@ public abstract class CollectorHoldableItem : HoldableItemBase
     [Tooltip("Maximum total items this collector can hold")]
     [SerializeField] protected int maxCapacity = 6;
 
-    [Tooltip("Delay between pulling items")]
+    [Tooltip("Delay between pulling collectables")]
     [SerializeField] protected float pullDelay = 0.2f;
+
+    [Header("Deposit Settings")]
+    [Tooltip("Time between depositing each item")]
+    [SerializeField] protected float depositInterval = 0.5f;
 
     // Runtime - track items by type
     protected Dictionary<string, int> collectedItems = new Dictionary<string, int>();
@@ -27,6 +34,10 @@ public abstract class CollectorHoldableItem : HoldableItemBase
     // Track items being collected (need to store type before item is destroyed)
     protected List<(CollectableItem item, string itemType)> beingCollected = new List<(CollectableItem, string)>();
     protected float lastPullTime;
+
+    // Deposit tracking
+    protected DepositStation currentDepositStation;
+    protected float lastDepositTime;
 
     /// <summary>
     /// Total number of items currently collected
@@ -56,6 +67,19 @@ public abstract class CollectorHoldableItem : HoldableItemBase
     // Override targeting - collectors don't target anything specific
     protected override string TargetTag => "Collectable";
 
+    protected override void Awake()
+    {
+        base.Awake();
+
+        // Setup Rigidbody for trigger detection (required for trigger-to-trigger)
+        Rigidbody rb = GetComponent<Rigidbody>();
+        if (rb != null)
+        {
+            rb.isKinematic = true;
+            rb.useGravity = false;
+        }
+    }
+
     protected override bool IsValidTarget(GameObject targetObj)
     {
         CollectableItem item = targetObj.GetComponent<CollectableItem>();
@@ -71,6 +95,68 @@ public abstract class CollectorHoldableItem : HoldableItemBase
 
         PullCollectables();
         CheckCollectionProgress();
+        TryDepositToStation();
+    }
+
+    /// <summary>
+    /// Called by DepositDetector child when entering a DepositStation
+    /// </summary>
+    public virtual void OnDepositStationEnter(DepositStation station)
+    {
+        if (station != null && !station.IsComplete)
+        {
+            currentDepositStation = station;
+            Debug.Log($"[Collector] Entered deposit range: {station.name}");
+        }
+    }
+
+    /// <summary>
+    /// Called by DepositDetector child when exiting a DepositStation
+    /// </summary>
+    public virtual void OnDepositStationExit(DepositStation station)
+    {
+        if (station != null && station == currentDepositStation)
+        {
+            currentDepositStation = null;
+            Debug.Log($"[Collector] Exited deposit range: {station.name}");
+        }
+    }
+
+    protected virtual void TryDepositToStation()
+    {
+        if (currentDepositStation == null) return;
+        if (currentDepositStation.IsComplete)
+        {
+            currentDepositStation = null;
+            return;
+        }
+        if (currentCount <= 0) return;
+        if (Time.time < lastDepositTime + depositInterval) return;
+
+        // Find an item type we have that the station needs
+        foreach (var req in currentDepositStation.Requirements)
+        {
+            if (req.currentAmount >= req.amount) continue; // Already fulfilled
+
+            if (collectedItems.TryGetValue(req.itemType, out int have) && have > 0)
+            {
+                // Transfer one item
+                RemoveItems(req.itemType, 1);
+                currentDepositStation.ReceiveItem(req.itemType, 1);
+                lastDepositTime = Time.time;
+
+                PlayPulse();
+                OnItemDeposited(req.itemType);
+
+                Debug.Log($"[Collector] Deposited 1x {req.itemType}");
+                return; // One item per interval
+            }
+        }
+    }
+
+    protected virtual void OnItemDeposited(string itemType)
+    {
+        // Override in subclass for sound/effects
     }
 
     protected virtual void PullCollectables()
