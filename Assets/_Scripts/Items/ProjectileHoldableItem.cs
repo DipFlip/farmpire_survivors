@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 /// <summary>
 /// Abstract base class for holdable items that fire projectiles.
@@ -18,10 +19,24 @@ public abstract class ProjectileHoldableItem : HoldableItemBase
     [SerializeField] protected Transform firePoint;
     [SerializeField] protected int poolSize = 10;
 
+    [Header("Resource")]
+    [SerializeField] protected ResourceType resourceType = ResourceType.None;
+    [Tooltip("Max resource capacity. -1 = unlimited")]
+    [SerializeField] protected float maxResource = -1f;
+    [SerializeField] protected Slider fillSlider;
+
     // Runtime
+    protected float currentResource;
     protected float lastFireTime;
     protected List<MonoBehaviour> projectilePool;
     protected Transform poolParent;
+
+    // Public properties
+    public ResourceType ResourceType => resourceType;
+    public float MaxResource => maxResource;
+    public float CurrentResource => currentResource;
+    public bool HasLimitedResource => maxResource >= 0f;
+    public bool IsEmpty => HasLimitedResource && currentResource <= 0f;
 
     // Abstract - subclasses define projectile behavior
     protected abstract void FireProjectile(MonoBehaviour projectile, Transform target);
@@ -30,6 +45,12 @@ public abstract class ProjectileHoldableItem : HoldableItemBase
     protected override void Awake()
     {
         base.Awake();
+
+        if (HasLimitedResource)
+        {
+            currentResource = maxResource;
+        }
+        UpdateFillSlider();
 
         if (currentState == ItemState.Equipped)
         {
@@ -63,6 +84,9 @@ public abstract class ProjectileHoldableItem : HoldableItemBase
     protected void Fire()
     {
         if (currentTarget == null) return;
+        if (IsEmpty) return;
+
+        if (!TryConsumeResource(amountPerShot)) return;
 
         MonoBehaviour projectile = GetProjectileFromPool();
         if (projectile == null) return;
@@ -73,6 +97,39 @@ public abstract class ProjectileHoldableItem : HoldableItemBase
 
         PlayPulse();
         PlayActionSound();
+    }
+
+    protected bool TryConsumeResource(float amount)
+    {
+        if (!HasLimitedResource) return true;
+
+        if (currentResource < amount) return false;
+
+        currentResource -= amount;
+        UpdateFillSlider();
+        return true;
+    }
+
+    public void AddResource(float amount)
+    {
+        if (!HasLimitedResource) return;
+
+        currentResource = Mathf.Min(currentResource + amount, maxResource);
+        UpdateFillSlider();
+    }
+
+    protected void UpdateFillSlider()
+    {
+        if (fillSlider == null) return;
+
+        if (!HasLimitedResource)
+        {
+            fillSlider.gameObject.SetActive(false);
+            return;
+        }
+
+        fillSlider.gameObject.SetActive(true);
+        fillSlider.value = currentResource / maxResource;
     }
 
     protected void InitializePool()

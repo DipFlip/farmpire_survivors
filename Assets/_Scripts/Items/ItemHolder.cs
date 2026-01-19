@@ -192,8 +192,26 @@ public class PickupTriggerHandler : MonoBehaviour
     {
         if (itemHolder == null) return;
 
-        IHoldableItem item = other.GetComponent<IHoldableItem>();
-        if (item == null) item = other.GetComponentInParent<IHoldableItem>();
+        IHoldableItem item = null;
+
+        // First check for PickupCollider marker (explicit pickup zone)
+        PickupCollider pickupCollider = other.GetComponent<PickupCollider>();
+        if (pickupCollider != null)
+        {
+            item = pickupCollider.Item;
+        }
+        else
+        {
+            // Fallback: check if this collider belongs to an item without a PickupCollider marker
+            item = other.GetComponent<IHoldableItem>();
+            if (item == null) item = other.GetComponentInParent<IHoldableItem>();
+
+            // If item has a PickupCollider somewhere, only that collider should trigger pickup
+            if (item != null && item.Transform.GetComponentInChildren<PickupCollider>() != null)
+            {
+                return; // This collider isn't the designated pickup collider
+            }
+        }
 
         if (item != null)
         {
