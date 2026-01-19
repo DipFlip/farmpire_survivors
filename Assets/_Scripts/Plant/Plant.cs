@@ -51,7 +51,10 @@ public class Plant : MonoBehaviour, ITargetable
     [SerializeField] private float pulseScale = 1.1f; // How much bigger during pulse
 
     [Header("Harvest")]
-    [Tooltip("Level to drop to after harvest is collected (1-indexed). Set to 0 to disable harvest watching.")]
+    [Tooltip("Prefab for max level stage (will be instantiated fresh each time). Leave empty to use growthStages array.")]
+    [SerializeField] private GameObject maxLevelPrefab;
+
+    [Tooltip("Level to drop to after harvest is collected (1-indexed). Set to 0 to disable harvest.")]
     [SerializeField] private int levelAfterHarvest = 2;
 
     [Header("Current State")]
@@ -65,7 +68,8 @@ public class Plant : MonoBehaviour, ITargetable
     private Vector3 originalStageScale;
 
     // Harvest tracking
-    private List<CollectableItem> activeHarvest = new List<CollectableItem>();
+    private GameObject spawnedMaxLevelInstance;
+    private List<CollectableItem> harvestItems = new List<CollectableItem>();
     private bool watchingHarvest = false;
 
     /// <summary>
@@ -116,10 +120,10 @@ public class Plant : MonoBehaviour, ITargetable
     {
         UpdateVisibleStage();
 
-        // If starting at max level, watch for harvest collection
-        if (currentLevel >= MaxLevel && levelAfterHarvest > 0)
+        // If starting at max level with a prefab, spawn it
+        if (currentLevel >= MaxLevel && maxLevelPrefab != null && levelAfterHarvest > 0)
         {
-            StartWatchingHarvest();
+            SpawnMaxLevelAndWatch();
         }
     }
 
@@ -226,22 +230,28 @@ public class Plant : MonoBehaviour, ITargetable
         currentLevel++;
         currentWater = 0f;
 
-        // Enable new stage with scale animation
-        int newIndex = currentLevel - 1;
-        if (growthStages[newIndex] != null)
+        // Check if we're reaching max level with a prefab
+        bool useMaxLevelPrefab = currentLevel >= MaxLevel && maxLevelPrefab != null && levelAfterHarvest > 0;
+
+        // Enable new stage with scale animation (skip if using prefab for max level)
+        if (!useMaxLevelPrefab)
         {
-            GameObject newStage = growthStages[newIndex];
-            Transform t = newStage.transform;
+            int newIndex = currentLevel - 1;
+            if (newIndex >= 0 && newIndex < growthStages.Length && growthStages[newIndex] != null)
+            {
+                GameObject newStage = growthStages[newIndex];
+                Transform t = newStage.transform;
 
-            // Store original scale and start small
-            Vector3 originalScale = t.localScale;
-            t.localScale = originalScale * startScale;
+                // Store original scale and start small
+                Vector3 originalScale = t.localScale;
+                t.localScale = originalScale * startScale;
 
-            newStage.SetActive(true);
+                newStage.SetActive(true);
 
-            // Animate to original scale with overshoot
-            t.DOScale(originalScale, scaleAnimationDuration)
-                .SetEase(Ease.OutBack, overshoot);
+                // Animate to original scale with overshoot
+                t.DOScale(originalScale, scaleAnimationDuration)
+                    .SetEase(Ease.OutBack, overshoot);
+            }
         }
 
         // Spawn level up effect and sound
@@ -255,32 +265,86 @@ public class Plant : MonoBehaviour, ITargetable
         }
     }
 
-    private void StartWatchingHarvest()
+    private void SpawnMaxLevelAndWatch()
     {
-        activeHarvest.Clear();
+        if (maxLevelPrefab == null) return;
 
-        // Find CollectableItem children of the current stage
-        int currentIndex = currentLevel - 1;
-        if (currentIndex >= 0 && currentIndex < growthStages.Length && growthStages[currentIndex] != null)
+        // Destroy old instance if exists
+        if (spawnedMaxLevelInstance != null)
         {
-            CollectableItem[] items = growthStages[currentIndex].GetComponentsInChildren<CollectableItem>();
-            activeHarvest.AddRange(items);
+            Destroy(spawnedMaxLevelInstance);
         }
 
-        if (activeHarvest.Count > 0)
+        // Disable the regular max level stage if it exists in growthStages
+        int maxIndex = MaxLevel - 1;
+        if (maxIndex >= 0 && maxIndex < growthStages.Length && growthStages[maxIndex] != null)
+        {
+            growthStages[maxIndex].SetActive(false);
+        }
+
+        // Spawn the prefab as a child
+        spawnedMaxLevelInstance = Instantiate(maxLevelPrefab, transform);
+        spawnedMaxLevelInstance.transform.localPosition = Vector3.zero;
+        spawnedMaxLevelInstance.transform.localRotation = Quaternion.identity;
+
+        // Find all CollectableItems in the spawned instance
+        harvestItems.Clear();
+        CollectableItem[] items = spawnedMaxLevelInstance.GetComponentsInChildren<CollectableItem>();
+        foreach (var item in items)
+        {
+            harvestItems.Add(item);
+        }
+
+        if (harvestItems.Count > 0)
         {
             watchingHarvest = true;
-            Debug.Log($"[Plant] {name} watching {activeHarvest.Count} harvest items");
+            Debug.Log($"[Plant] {name} spawned max level prefab with {harvestItems.Count} harvest items");
         }
+        else
+        {
+            Debug.LogWarning($"[Plant] {name} spawned max level prefab but found no CollectableItems!");
+        }
+    }
+
+    private void StartWatchingHarvest()
+    {
+        // If we have a prefab, spawn it fresh
+        if (maxLevelPrefab != null)
+        {
+            SpawnMaxLevelAndWatch();
+            return;
+        }
+
+        // Legacy: use existing items in growthStages
+        if (harvestItems.Count == 0) return;
+
+        // Reactivate and reset all harvest items
+        foreach (var item in harvestItems)
+        {
+            if (item != null)
+            {
+                item.ResetForHarvest();
+            }
+        }
+
+        watchingHarvest = true;
+        Debug.Log($"[Plant] {name} activated {harvestItems.Count} harvest items");
     }
 
     private void CheckHarvestCollected()
     {
-        // Remove null/destroyed/collected items from list
-        activeHarvest.RemoveAll(h => h == null || h.State == CollectableItem.CollectableState.Collected);
+        // Count active (not collected) harvest items
+        int activeCount = 0;
+        foreach (var item in harvestItems)
+        {
+            if (item != null && item.gameObject.activeSelf && item.State != CollectableItem.CollectableState.Collected)
+            {
+                activeCount++;
+            }
+        }
 
         // If all collected, drop to lower level
-        if (activeHarvest.Count == 0)
+        if (activeCount == 0)
         {
             OnHarvestCollected();
         }
@@ -291,6 +355,16 @@ public class Plant : MonoBehaviour, ITargetable
         watchingHarvest = false;
 
         Debug.Log($"[Plant] {name} harvest collected, dropping to level {levelAfterHarvest}");
+
+        // Destroy spawned max level instance if exists
+        if (spawnedMaxLevelInstance != null)
+        {
+            Destroy(spawnedMaxLevelInstance);
+            spawnedMaxLevelInstance = null;
+        }
+
+        // Clear harvest items list
+        harvestItems.Clear();
 
         // Drop to lower level
         SetLevel(levelAfterHarvest);

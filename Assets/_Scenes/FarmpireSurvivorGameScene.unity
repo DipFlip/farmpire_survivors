@@ -4049,7 +4049,7 @@ MonoBehaviour:
   followSpeed: 15
   pulseDuration: 0.15
   pulseScale: 1.2
-  actionSound: {fileID: 0}
+  actionSound: {fileID: 8300000, guid: aa640c1b14b41495e925cd01f14860ce, type: 3}
   minPitch: 0.9
   maxPitch: 1.1
   currentState: 0

@@ -175,6 +175,23 @@ public class CollectableItem : MonoBehaviour
     }
 
     /// <summary>
+    /// Reset this collectable for reuse (called by Plant when regrowing)
+    /// </summary>
+    public void ResetForHarvest()
+    {
+        state = CollectableState.Idle;
+        collectTarget = null;
+        transform.localScale = originalScale;
+        hasSettled = true;
+        settledPosition = transform.position;
+
+        rb.isKinematic = true;
+        col.enabled = true;
+
+        gameObject.SetActive(true);
+    }
+
+    /// <summary>
     /// Cancel collection (e.g., if collector is dropped)
     /// </summary>
     public void CancelCollection()
