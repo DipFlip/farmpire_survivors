@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using DG.Tweening;
 #if UNITY_EDITOR
@@ -7,11 +8,14 @@ using UnityEditor;
 /// <summary>
 /// Manages plant growth through watering. Growth stages are child GameObjects
 /// that get enabled/disabled as the plant levels up.
+/// At max level, spawns harvestable CollectableItems. When all are collected,
+/// the plant drops back to a lower level and can regrow.
 ///
 /// Setup:
 /// - Parent: This script
 /// - Children: Each growth level prefab with mesh + BoxCollider + "Plant" tag
 /// - Assign children to growthStages array in order
+/// - Optionally assign harvestPrefab for collectables at max level
 /// </summary>
 public class Plant : MonoBehaviour, ITargetable
 {
@@ -46,6 +50,10 @@ public class Plant : MonoBehaviour, ITargetable
     [SerializeField] private float pulseCycleTime = 0.25f; // Time for one up-down cycle
     [SerializeField] private float pulseScale = 1.1f; // How much bigger during pulse
 
+    [Header("Harvest")]
+    [Tooltip("Level to drop to after harvest is collected (1-indexed). Set to 0 to disable harvest watching.")]
+    [SerializeField] private int levelAfterHarvest = 2;
+
     [Header("Current State")]
     [Tooltip("Current growth level (1 = first stage)")]
     [SerializeField] private int currentLevel = 1;
@@ -55,6 +63,10 @@ public class Plant : MonoBehaviour, ITargetable
     private Tween pulseTween;
     private float pulseEndTime;
     private Vector3 originalStageScale;
+
+    // Harvest tracking
+    private List<CollectableItem> activeHarvest = new List<CollectableItem>();
+    private bool watchingHarvest = false;
 
     /// <summary>
     /// Current water amount toward next level
@@ -84,7 +96,12 @@ public class Plant : MonoBehaviour, ITargetable
     /// <summary>
     /// Whether this plant can still grow
     /// </summary>
-    public bool CanGrow => currentLevel < MaxLevel;
+    public bool CanGrow => currentLevel < MaxLevel && !watchingHarvest;
+
+    /// <summary>
+    /// Whether this plant has active harvest waiting to be collected
+    /// </summary>
+    public bool HasActiveHarvest => watchingHarvest;
 
     // Updates visibility in editor when you change values
     private void OnValidate()
@@ -98,6 +115,12 @@ public class Plant : MonoBehaviour, ITargetable
     private void Start()
     {
         UpdateVisibleStage();
+
+        // If starting at max level, watch for harvest collection
+        if (currentLevel >= MaxLevel && levelAfterHarvest > 0)
+        {
+            StartWatchingHarvest();
+        }
     }
 
     private void UpdateVisibleStage()
@@ -124,6 +147,12 @@ public class Plant : MonoBehaviour, ITargetable
         if (pulseTween != null && Time.time >= pulseEndTime)
         {
             StopPulse();
+        }
+
+        // Check if harvest has been collected
+        if (watchingHarvest)
+        {
+            CheckHarvestCollected();
         }
     }
 
@@ -218,6 +247,89 @@ public class Plant : MonoBehaviour, ITargetable
         // Spawn level up effect and sound
         SpawnLevelUpEffect();
         PlayLevelUpSound();
+
+        // Check if we reached max level - start watching for harvest collection
+        if (currentLevel >= MaxLevel && levelAfterHarvest > 0)
+        {
+            StartWatchingHarvest();
+        }
+    }
+
+    private void StartWatchingHarvest()
+    {
+        activeHarvest.Clear();
+
+        // Find CollectableItem children of the current stage
+        int currentIndex = currentLevel - 1;
+        if (currentIndex >= 0 && currentIndex < growthStages.Length && growthStages[currentIndex] != null)
+        {
+            CollectableItem[] items = growthStages[currentIndex].GetComponentsInChildren<CollectableItem>();
+            activeHarvest.AddRange(items);
+        }
+
+        if (activeHarvest.Count > 0)
+        {
+            watchingHarvest = true;
+            Debug.Log($"[Plant] {name} watching {activeHarvest.Count} harvest items");
+        }
+    }
+
+    private void CheckHarvestCollected()
+    {
+        // Remove null/destroyed/collected items from list
+        activeHarvest.RemoveAll(h => h == null || h.State == CollectableItem.CollectableState.Collected);
+
+        // If all collected, drop to lower level
+        if (activeHarvest.Count == 0)
+        {
+            OnHarvestCollected();
+        }
+    }
+
+    private void OnHarvestCollected()
+    {
+        watchingHarvest = false;
+
+        Debug.Log($"[Plant] {name} harvest collected, dropping to level {levelAfterHarvest}");
+
+        // Drop to lower level
+        SetLevel(levelAfterHarvest);
+    }
+
+    /// <summary>
+    /// Set the plant to a specific level
+    /// </summary>
+    public void SetLevel(int newLevel)
+    {
+        if (growthStages == null || growthStages.Length == 0) return;
+
+        StopPulse();
+
+        // Disable current stage
+        int currentIndex = currentLevel - 1;
+        if (currentIndex >= 0 && currentIndex < growthStages.Length && growthStages[currentIndex] != null)
+        {
+            growthStages[currentIndex].SetActive(false);
+        }
+
+        // Set new level
+        currentLevel = Mathf.Clamp(newLevel, 1, MaxLevel);
+        currentWater = 0f;
+
+        // Enable new stage with animation
+        int newIndex = currentLevel - 1;
+        if (newIndex >= 0 && newIndex < growthStages.Length && growthStages[newIndex] != null)
+        {
+            GameObject newStage = growthStages[newIndex];
+            Transform t = newStage.transform;
+
+            Vector3 originalScale = t.localScale;
+            t.localScale = originalScale * startScale;
+            newStage.SetActive(true);
+
+            t.DOScale(originalScale, scaleAnimationDuration)
+                .SetEase(Ease.OutBack, overshoot);
+        }
     }
 
     private void PlayLevelUpSound()
