@@ -9,6 +9,7 @@ TagManager:
   - DigSite
   - Tree
   - Collectable
+  - Enemy
   layers:
   - Default
   - TransparentFX

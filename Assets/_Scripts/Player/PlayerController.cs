@@ -76,7 +76,8 @@ public class PlayerController : MonoBehaviour
 
     private void HandleGravityAndJump()
     {
-        bool grounded = controller.isGrounded;
+        // Only consider grounded when moving downward to avoid canceling jumps on ledges
+        bool grounded = controller.isGrounded && velocity.y <= 0f;
 
         if (grounded)
         {
@@ -94,7 +95,7 @@ public class PlayerController : MonoBehaviour
         if (input.Player.Jump.WasPressedThisFrame())
         {
             Debug.Log($"Jump pressed! Grounded: {controller.isGrounded}");
-            if (controller.isGrounded)
+            if (controller.isGrounded && velocity.y <= 0f)
             {
                 velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
                 controller.Move(velocity * Time.deltaTime);

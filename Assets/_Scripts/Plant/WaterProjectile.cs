@@ -92,6 +92,18 @@ public class WaterProjectile : MonoBehaviour
                 plant.ReceiveWater(waterAmount);
             }
             Deactivate();
+            return;
+        }
+
+        // Check if we hit an enemy
+        if (other.CompareTag("Enemy"))
+        {
+            Enemy enemy = other.GetComponentInParent<Enemy>();
+            if (enemy != null && !enemy.IsDead)
+            {
+                enemy.ReceiveWaterDamage(waterAmount);
+            }
+            Deactivate();
         }
     }
 
