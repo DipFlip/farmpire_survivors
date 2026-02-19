@@ -46,6 +46,9 @@ public class Enemy : MonoBehaviour
 
     [Header("Effects")]
     [SerializeField] private GameObject deathEffectPrefab;
+    [SerializeField] private GameObject attackEffectPrefab;
+    [SerializeField] private GameObject chopHitEffectPrefab;
+    [SerializeField] private float chopHitEffectScale = 0.5f;
 
     [Header("Attack Animation")]
     [SerializeField] private float attackScaleForward = 1.3f;
@@ -195,6 +198,7 @@ public class Enemy : MonoBehaviour
     {
         // Play attack animation (scale forward)
         PlayAttackAnimation();
+        SpawnAttackEffect();
 
         // Priority 1: Eat fruits if plant has active harvest
         if (targetPlant.HasActiveHarvest)
@@ -263,6 +267,39 @@ public class Enemy : MonoBehaviour
         }
     }
 
+    private void SpawnChopHitEffect()
+    {
+        if (chopHitEffectPrefab == null) return;
+
+        GameObject effect = Instantiate(chopHitEffectPrefab, transform.position, Quaternion.identity);
+        effect.transform.localScale = Vector3.one * chopHitEffectScale;
+
+        if (effect.TryGetComponent<ParticleSystem>(out var ps))
+        {
+            Destroy(effect, ps.main.duration + ps.main.startLifetime.constantMax);
+        }
+        else
+        {
+            Destroy(effect, 3f);
+        }
+    }
+
+    private void SpawnAttackEffect()
+    {
+        if (attackEffectPrefab == null || targetPlant == null) return;
+
+        GameObject effect = Instantiate(attackEffectPrefab, targetPlant.transform.position, Quaternion.identity);
+
+        if (effect.TryGetComponent<ParticleSystem>(out var ps))
+        {
+            Destroy(effect, ps.main.duration + ps.main.startLifetime.constantMax);
+        }
+        else
+        {
+            Destroy(effect, 3f);
+        }
+    }
+
     private void PlayAttackAnimation()
     {
         // Scale forward (Z axis) from the back pivot by offsetting position
@@ -309,6 +346,7 @@ public class Enemy : MonoBehaviour
     {
         if (isDead) return;
 
+        SpawnChopHitEffect();
         float damage = chopAmount * chopDamageMultiplier;
         TakeDamage(damage);
     }

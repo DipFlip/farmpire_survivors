@@ -50,6 +50,9 @@ public class DigSite : MonoBehaviour, ITargetable
     private float pulseEndTime;
     private Vector3 originalVisualScale;
 
+    // Track spawned plant
+    private GameObject spawnedPlant;
+
     // ITargetable implementation
     public bool CanReceive => currentState == DigState.Undig || currentState == DigState.Dug;
 
@@ -73,6 +76,12 @@ public class DigSite : MonoBehaviour, ITargetable
         if (pulseTween != null && Time.time >= pulseEndTime)
         {
             StopPulse();
+        }
+
+        // If planted but the plant was destroyed (e.g. by an enemy), reset to Dug
+        if (currentState == DigState.Planted && spawnedPlant == null)
+        {
+            ResetToDug();
         }
     }
 
@@ -140,6 +149,7 @@ public class DigSite : MonoBehaviour, ITargetable
         {
             Vector3 spawnPos = transform.position + plantSpawnOffset;
             GameObject plant = Instantiate(plantPrefab, spawnPos, Quaternion.identity);
+            spawnedPlant = plant;
 
             // Optional: scale animation for the spawned plant
             Transform plantTransform = plant.transform;
@@ -202,6 +212,18 @@ public class DigSite : MonoBehaviour, ITargetable
     }
 
     /// <summary>
+    /// Reset dig site to dug state so it can be re-seeded
+    /// </summary>
+    private void ResetToDug()
+    {
+        StopPulse();
+        currentState = DigState.Dug;
+        currentSeeds = 0f;
+        spawnedPlant = null;
+        UpdateVisuals();
+    }
+
+    /// <summary>
     /// Reset dig site to initial undig state
     /// </summary>
     public void ResetDigSite()
@@ -210,6 +232,7 @@ public class DigSite : MonoBehaviour, ITargetable
         currentState = DigState.Undig;
         currentDig = 0f;
         currentSeeds = 0f;
+        spawnedPlant = null;
         UpdateVisuals();
     }
 

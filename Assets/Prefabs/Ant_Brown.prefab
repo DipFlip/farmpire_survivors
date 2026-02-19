@@ -532,9 +532,12 @@ MonoBehaviour:
   attackCooldown: 1
   fruitHealth: 20
   plantLevelHealth: 50
-  waterDamageMultiplier: 0.2
+  waterDamageMultiplier: 8
   chopDamageMultiplier: 1
-  deathEffectPrefab: {fileID: 0}
+  deathEffectPrefab: {fileID: 1362175870234556442, guid: a53eb48da952049cb912acf863ca6e1f, type: 3}
+  attackEffectPrefab: {fileID: 763799897560185588, guid: c9b1a010f054449c7b200be8d475afe8, type: 3}
+  chopHitEffectPrefab: {fileID: 8525990746615576120, guid: 6ad5ec40a480a4fdeb58c311117eea81, type: 3}
+  chopHitEffectScale: 0.5
   attackScaleForward: 1.3
   attackScaleDuration: 0.15
   hitFlashDuration: 0.1

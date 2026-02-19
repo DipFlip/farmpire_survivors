@@ -15,7 +15,7 @@ using UnityEditor;
 /// - Parent: This script
 /// - Children: Each growth level prefab with mesh + BoxCollider + "Plant" tag
 /// - Assign children to growthStages array in order
-/// - Optionally assign harvestPrefab for collectables at max level
+/// - The last stage is instantiated fresh each time for harvest (so collectables reset)
 /// </summary>
 public class Plant : MonoBehaviour, ITargetable
 {
@@ -51,9 +51,6 @@ public class Plant : MonoBehaviour, ITargetable
     [SerializeField] private float pulseScale = 1.1f; // How much bigger during pulse
 
     [Header("Harvest")]
-    [Tooltip("Prefab for max level stage (will be instantiated fresh each time). Leave empty to use growthStages array.")]
-    [SerializeField] private GameObject maxLevelPrefab;
-
     [Tooltip("Level to drop to after harvest is collected (1-indexed). Set to 0 to disable harvest.")]
     [SerializeField] private int levelAfterHarvest = 2;
 
@@ -120,8 +117,8 @@ public class Plant : MonoBehaviour, ITargetable
     {
         UpdateVisibleStage();
 
-        // If starting at max level with a prefab, spawn it
-        if (currentLevel >= MaxLevel && maxLevelPrefab != null && levelAfterHarvest > 0)
+        // If starting at max level with harvest, spawn fresh instance
+        if (currentLevel >= MaxLevel && levelAfterHarvest > 0)
         {
             SpawnMaxLevelAndWatch();
         }
@@ -230,25 +227,37 @@ public class Plant : MonoBehaviour, ITargetable
         currentLevel++;
         currentWater = 0f;
 
-        // Check if we're reaching max level with a prefab
-        bool useMaxLevelPrefab = currentLevel >= MaxLevel && maxLevelPrefab != null && levelAfterHarvest > 0;
+        bool isHarvestLevel = currentLevel >= MaxLevel && levelAfterHarvest > 0;
 
-        // Enable new stage with scale animation (skip if using prefab for max level)
-        if (!useMaxLevelPrefab)
+        if (isHarvestLevel)
         {
+            // Spawn a fresh instance of the max level stage for harvest
+            SpawnMaxLevelAndWatch();
+
+            // Animate the spawned instance
+            if (spawnedMaxLevelInstance != null)
+            {
+                Transform t = spawnedMaxLevelInstance.transform;
+                Vector3 originalScale = t.localScale;
+                t.localScale = originalScale * startScale;
+                t.DOScale(originalScale, scaleAnimationDuration)
+                    .SetEase(Ease.OutBack, overshoot);
+            }
+        }
+        else
+        {
+            // Enable new stage with scale animation
             int newIndex = currentLevel - 1;
             if (newIndex >= 0 && newIndex < growthStages.Length && growthStages[newIndex] != null)
             {
                 GameObject newStage = growthStages[newIndex];
                 Transform t = newStage.transform;
 
-                // Store original scale and start small
                 Vector3 originalScale = t.localScale;
                 t.localScale = originalScale * startScale;
 
                 newStage.SetActive(true);
 
-                // Animate to original scale with overshoot
                 t.DOScale(originalScale, scaleAnimationDuration)
                     .SetEase(Ease.OutBack, overshoot);
             }
@@ -257,17 +266,12 @@ public class Plant : MonoBehaviour, ITargetable
         // Spawn level up effect and sound
         SpawnLevelUpEffect();
         PlayLevelUpSound();
-
-        // Check if we reached max level - start watching for harvest collection
-        if (currentLevel >= MaxLevel && levelAfterHarvest > 0)
-        {
-            StartWatchingHarvest();
-        }
     }
 
     private void SpawnMaxLevelAndWatch()
     {
-        if (maxLevelPrefab == null) return;
+        int maxIndex = MaxLevel - 1;
+        if (maxIndex < 0 || maxIndex >= growthStages.Length || growthStages[maxIndex] == null) return;
 
         // Destroy old instance if exists
         if (spawnedMaxLevelInstance != null)
@@ -275,17 +279,12 @@ public class Plant : MonoBehaviour, ITargetable
             Destroy(spawnedMaxLevelInstance);
         }
 
-        // Disable the regular max level stage if it exists in growthStages
-        int maxIndex = MaxLevel - 1;
-        if (maxIndex >= 0 && maxIndex < growthStages.Length && growthStages[maxIndex] != null)
-        {
-            growthStages[maxIndex].SetActive(false);
-        }
+        // Keep the template stage disabled
+        growthStages[maxIndex].SetActive(false);
 
-        // Spawn the prefab as a child
-        spawnedMaxLevelInstance = Instantiate(maxLevelPrefab, transform);
-        spawnedMaxLevelInstance.transform.localPosition = Vector3.zero;
-        spawnedMaxLevelInstance.transform.localRotation = Quaternion.identity;
+        // Spawn a fresh copy as a child so collectables are reset
+        spawnedMaxLevelInstance = Instantiate(growthStages[maxIndex], transform);
+        spawnedMaxLevelInstance.SetActive(true);
 
         // Find all CollectableItems in the spawned instance
         harvestItems.Clear();
@@ -298,37 +297,7 @@ public class Plant : MonoBehaviour, ITargetable
         if (harvestItems.Count > 0)
         {
             watchingHarvest = true;
-            Debug.Log($"[Plant] {name} spawned max level prefab with {harvestItems.Count} harvest items");
         }
-        else
-        {
-            Debug.LogWarning($"[Plant] {name} spawned max level prefab but found no CollectableItems!");
-        }
-    }
-
-    private void StartWatchingHarvest()
-    {
-        // If we have a prefab, spawn it fresh
-        if (maxLevelPrefab != null)
-        {
-            SpawnMaxLevelAndWatch();
-            return;
-        }
-
-        // Legacy: use existing items in growthStages
-        if (harvestItems.Count == 0) return;
-
-        // Reactivate and reset all harvest items
-        foreach (var item in harvestItems)
-        {
-            if (item != null)
-            {
-                item.ResetForHarvest();
-            }
-        }
-
-        watchingHarvest = true;
-        Debug.Log($"[Plant] {name} activated {harvestItems.Count} harvest items");
     }
 
     private void CheckHarvestCollected()
