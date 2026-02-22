@@ -41,8 +41,8 @@ public class DepositStation : MonoBehaviour
     [Tooltip("Prefab to spawn when deposit is complete")]
     [SerializeField] private GameObject spawnOnCompletePrefab;
 
-    [Tooltip("Offset from station position to spawn the prefab")]
-    [SerializeField] private Vector3 spawnOffset = Vector3.zero;
+    [Tooltip("GameObject whose position is used for spawning On Completes and playing the Complete Effect")]
+    [SerializeField] private GameObject spawnLocation;
 
     [Tooltip("Use station's rotation for spawned object")]
     [SerializeField] private bool useStationRotation = true;
@@ -213,11 +213,13 @@ public class DepositStation : MonoBehaviour
         }
     }
 
+    private Vector3 SpawnPosition => spawnLocation != null ? spawnLocation.transform.position : transform.position;
+
     private void SpawnCompletePrefab()
     {
         if (spawnOnCompletePrefab == null) return;
 
-        Vector3 spawnPos = transform.position + spawnOffset;
+        Vector3 spawnPos = SpawnPosition;
         Quaternion spawnRot = useStationRotation ? transform.rotation : Quaternion.identity;
 
         GameObject spawned = Instantiate(spawnOnCompletePrefab, spawnPos, spawnRot);
@@ -252,10 +254,10 @@ public class DepositStation : MonoBehaviour
 
     private void PlayCompleteFeedback()
     {
-        // Effect
+        // Effect at spawn location
         if (completeEffectPrefab != null)
         {
-            SpawnEffect(completeEffectPrefab);
+            SpawnEffect(completeEffectPrefab, SpawnPosition);
         }
 
         // Sound
@@ -265,9 +267,9 @@ public class DepositStation : MonoBehaviour
         }
     }
 
-    private void SpawnEffect(GameObject prefab)
+    private void SpawnEffect(GameObject prefab, Vector3? position = null)
     {
-        GameObject effect = Instantiate(prefab, transform.position, Quaternion.identity);
+        GameObject effect = Instantiate(prefab, position ?? transform.position, Quaternion.identity);
 
         if (effect.TryGetComponent<ParticleSystem>(out var ps))
         {

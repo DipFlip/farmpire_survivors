@@ -293,24 +293,40 @@ public class Tree : MonoBehaviour, ITargetable
         if (logPrefab == null) return;
 
         Vector3 spawnPos = transform.position + logSpawnOffset;
+        float angleStep = 360f / logsToSpawn;
+        float randomBaseAngle = Random.Range(0f, 360f);
 
         for (int i = 0; i < logsToSpawn; i++)
         {
-            GameObject log = Instantiate(logPrefab, spawnPos, Random.rotation);
+            // Spread each log at an evenly spaced angle with slight randomness
+            float angle = (randomBaseAngle + i * angleStep + Random.Range(-15f, 15f)) * Mathf.Deg2Rad;
+            Vector3 dir = new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle));
+
+            GameObject log = Instantiate(logPrefab, spawnPos + dir * 0.3f, Random.rotation);
+
+            // Disable collider briefly so overlapping logs don't fight
+            Collider logCol = log.GetComponent<Collider>();
+            if (logCol != null)
+            {
+                logCol.enabled = false;
+                StartCoroutine(EnableColliderAfterDelay(logCol, 0.5f));
+            }
 
             Rigidbody rb = log.GetComponent<Rigidbody>();
             if (rb != null)
             {
-                Vector3 scatterDir = new Vector3(
-                    Random.Range(-1f, 1f),
-                    Random.Range(0.5f, 1f),
-                    Random.Range(-1f, 1f)
-                ).normalized;
-
-                rb.AddForce(scatterDir * logScatterForce + Vector3.up * logScatterUpForce, ForceMode.Impulse);
-                rb.AddTorque(Random.insideUnitSphere * 5f, ForceMode.Impulse);
+                Vector3 scatterDir = (dir + Vector3.up * 1.5f).normalized;
+                rb.linearVelocity = scatterDir * logScatterForce + Vector3.up * logScatterUpForce;
+                rb.AddTorque(Random.insideUnitSphere * 3f, ForceMode.Impulse);
             }
         }
+    }
+
+    private System.Collections.IEnumerator EnableColliderAfterDelay(Collider col, float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        if (col != null)
+            col.enabled = true;
     }
 
     private void PlayChopSound()
