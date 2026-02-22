@@ -93,41 +93,22 @@ public abstract class MeleeHoldableItem : HoldableItemBase
 
     protected virtual void OnTriggerEnter(Collider other)
     {
-        Debug.Log($"[{GetType().Name}] OnTriggerEnter: {other.name} (tag: {other.tag})");
-
         // Only deal damage when equipped
-        if (currentState != ItemState.Equipped)
-        {
-            Debug.Log($"[{GetType().Name}] Not equipped, ignoring");
-            return;
-        }
+        if (currentState != ItemState.Equipped) return;
 
         // Check if this is a valid target by tag
-        if (!other.CompareTag(TargetTag))
-        {
-            Debug.Log($"[{GetType().Name}] Tag mismatch: expected '{TargetTag}', got '{other.tag}'");
-            return;
-        }
+        if (!other.CompareTag(TargetTag)) return;
 
         // Validate target (subclass-specific logic)
-        if (!IsValidTarget(other.gameObject))
-        {
-            Debug.Log($"[{GetType().Name}] IsValidTarget returned false for {other.name}");
-            return;
-        }
+        if (!IsValidTarget(other.gameObject)) return;
 
         // Check cooldown for this specific target
         if (hitCooldowns.TryGetValue(other, out float lastHitTime))
         {
-            if (Time.time < lastHitTime + hitCooldown)
-            {
-                Debug.Log($"[{GetType().Name}] On cooldown for {other.name}");
-                return;
-            }
+            if (Time.time < lastHitTime + hitCooldown) return;
         }
 
         // Deal damage
-        Debug.Log($"[{GetType().Name}] Dealing {damageAmount} damage to {other.name}");
         DealDamage(other.gameObject, damageAmount);
         hitCooldowns[other] = Time.time;
 

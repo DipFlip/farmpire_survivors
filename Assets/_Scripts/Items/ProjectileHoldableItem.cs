@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using DG.Tweening;
 
 /// <summary>
 /// Abstract base class for holdable items that fire projectiles.
@@ -31,12 +32,23 @@ public abstract class ProjectileHoldableItem : HoldableItemBase
     protected List<MonoBehaviour> projectilePool;
     protected Transform poolParent;
 
+    // Refill hover
+    private ProjectileRefill refillStation;
+    private float refillHoverHeight = 1.5f;
+    private float refillHoverSpeed = 5f;
+    private float refillBobHeight = 0.3f;
+    private float refillBobDuration = 0.6f;
+    private float bobOffset;
+    private Tween refillBobTween;
+
     // Public properties
     public ResourceType ResourceType => resourceType;
     public float MaxResource => maxResource;
     public float CurrentResource => currentResource;
     public bool HasLimitedResource => maxResource >= 0f;
     public bool IsEmpty => HasLimitedResource && currentResource <= 0f;
+    public bool IsRefilling => refillStation != null;
+    public float RefillBobDuration => refillBobDuration;
 
     // Abstract - subclasses define projectile behavior
     protected abstract void FireProjectile(MonoBehaviour projectile, Transform target);
@@ -64,11 +76,69 @@ public abstract class ProjectileHoldableItem : HoldableItemBase
 
         if (currentState != ItemState.Equipped || holder == null) return;
 
-        if (currentTarget != null && Time.time >= lastFireTime + (1f / fireRate))
+        if (currentTarget != null && !IsRefilling && Time.time >= lastFireTime + (1f / fireRate))
         {
             Fire();
             lastFireTime = Time.time;
         }
+    }
+
+    protected override void UpdateOrbitPosition()
+    {
+        if (refillStation != null)
+        {
+            Vector3 hoverPos = refillStation.transform.position + Vector3.up * (refillHoverHeight + bobOffset);
+            transform.position = Vector3.Lerp(transform.position, hoverPos, refillHoverSpeed * Time.deltaTime);
+            return;
+        }
+
+        base.UpdateOrbitPosition();
+    }
+
+    public void StartRefillHover(ProjectileRefill station, float hoverHeight = 1.5f)
+    {
+        refillStation = station;
+        refillHoverHeight = hoverHeight;
+        bobOffset = 0f;
+        StartRefillBob();
+    }
+
+    public void StopRefillHover()
+    {
+        refillBobTween?.Kill();
+        bobOffset = 0f;
+        refillStation = null;
+    }
+
+    private void StartRefillBob()
+    {
+        refillBobTween?.Kill();
+
+        var seq = DOTween.Sequence();
+        // Bob up
+        seq.Append(DOTween.To(() => bobOffset, x => bobOffset = x, refillBobHeight, refillBobDuration / 2f)
+            .SetEase(Ease.OutQuad));
+        // Bob down
+        seq.Append(DOTween.To(() => bobOffset, x => bobOffset = x, 0f, refillBobDuration / 2f)
+            .SetEase(Ease.InQuad));
+        // On each down: refill tick + feedback
+        seq.AppendCallback(OnRefillBobDown);
+        seq.SetLoops(-1);
+        refillBobTween = seq;
+    }
+
+    private void OnRefillBobDown()
+    {
+        if (refillStation == null) return;
+
+        if (currentResource >= maxResource)
+        {
+            refillStation.StopFromItem();
+            return;
+        }
+
+        AddResource(refillStation.RefillAmount);
+        refillStation.PlayRefillFeedback();
     }
 
     public override void Equip(Transform newHolder, float assignedOrbitAngle)

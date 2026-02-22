@@ -102,7 +102,7 @@ public abstract class HoldableItemBase : MonoBehaviour, IHoldableItem
         targetOrbitAngle = angle;
     }
 
-    protected void UpdateOrbitPosition()
+    protected virtual void UpdateOrbitPosition()
     {
         Vector3 faceDirection;
         if (currentTarget != null)

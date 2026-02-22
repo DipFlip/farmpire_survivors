@@ -109,13 +109,18 @@ public class WaterProjectile : MonoBehaviour
 
     private void HitTarget()
     {
-        // Deliver water if target still exists and has Plant component
         if (target != null)
         {
             Plant plant = target.GetComponentInParent<Plant>();
             if (plant != null)
             {
                 plant.ReceiveWater(waterAmount);
+            }
+
+            Enemy enemy = target.GetComponentInParent<Enemy>();
+            if (enemy != null && !enemy.IsDead)
+            {
+                enemy.ReceiveWaterDamage(waterAmount);
             }
         }
         Deactivate();

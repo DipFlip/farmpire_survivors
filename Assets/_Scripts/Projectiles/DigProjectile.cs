@@ -87,6 +87,17 @@ public class DigProjectile : MonoBehaviour
                 digSite.ReceiveDig(digAmount);
             }
             Deactivate();
+            return;
+        }
+
+        if (other.CompareTag("Enemy"))
+        {
+            Enemy enemy = other.GetComponentInParent<Enemy>();
+            if (enemy != null && !enemy.IsDead)
+            {
+                enemy.ReceiveChopDamage(digAmount);
+            }
+            Deactivate();
         }
     }
 
@@ -98,6 +109,12 @@ public class DigProjectile : MonoBehaviour
             if (digSite != null)
             {
                 digSite.ReceiveDig(digAmount);
+            }
+
+            Enemy enemy = target.GetComponentInParent<Enemy>();
+            if (enemy != null && !enemy.IsDead)
+            {
+                enemy.ReceiveChopDamage(digAmount);
             }
         }
         Deactivate();

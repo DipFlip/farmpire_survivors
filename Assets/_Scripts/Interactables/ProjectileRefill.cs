@@ -19,61 +19,37 @@ public class ProjectileRefill : MonoBehaviour
     [Tooltip("Amount to refill per tick. -1 = instant full refill")]
     [SerializeField] private float refillAmount = -1f;
 
-    [Tooltip("Time between refill ticks (only used if refillAmount > 0)")]
-    [SerializeField] private float refillRate = 0.1f;
-
     [Header("Visual Feedback")]
     [SerializeField] private float pulseScale = 1.1f;
     [SerializeField] private float pulseDuration = 0.3f;
 
     [Header("Effects")]
     [SerializeField] private GameObject refillEffectPrefab;
+    [SerializeField] private float refillEffectScale = 1f;
+    [Tooltip("Where to spawn the effect. If empty, uses this transform's position")]
+    [SerializeField] private Transform refillEffectPosition;
 
     [Header("Sound")]
     [SerializeField] private AudioClip refillSound;
-    [Tooltip("Time between sound plays during gradual refill. 0 = play every tick")]
-    [SerializeField] private float soundRate = 0.2f;
     [SerializeField] private float minPitch = 0.9f;
     [SerializeField] private float maxPitch = 1.1f;
 
-    private float lastRefillTime;
-    private float lastSoundTime;
+    [Header("Hover")]
+    [Tooltip("Height above the station the item floats while refilling")]
+    [SerializeField] private float hoverHeight = 1.5f;
+
     private ItemHolder currentHolder;
-    private bool isRefilling;
+    private ProjectileHoldableItem currentItem;
 
     public ResourceType ResourceType => resourceType;
+    public float RefillAmount => refillAmount;
 
-    private void Update()
+    /// <summary>
+    /// Called by the item when it's full during a bob cycle
+    /// </summary>
+    public void StopFromItem()
     {
-        if (!isRefilling || currentHolder == null) return;
-
-        ProjectileHoldableItem item = GetMatchingItem(currentHolder);
-        if (item == null)
-        {
-            isRefilling = false;
-            return;
-        }
-
-        // Continuous refill
-        if (refillAmount > 0 && Time.time >= lastRefillTime + refillRate)
-        {
-            if (item.CurrentResource < item.MaxResource)
-            {
-                item.AddResource(refillAmount);
-                lastRefillTime = Time.time;
-
-                // Play sound at soundRate interval
-                if (Time.time >= lastSoundTime + soundRate)
-                {
-                    PlaySound();
-                    lastSoundTime = Time.time;
-                }
-            }
-            else
-            {
-                isRefilling = false;
-            }
-        }
+        StopRefilling();
     }
 
     private void OnTriggerEnter(Collider other)
@@ -89,24 +65,20 @@ public class ProjectileRefill : MonoBehaviour
         if (item == null) return;
 
         currentHolder = holder;
+        currentItem = item;
+
+        if (item.CurrentResource >= item.MaxResource) return;
 
         if (refillAmount < 0)
         {
             // Instant full refill
-            float amountToAdd = item.MaxResource - item.CurrentResource;
-            if (amountToAdd > 0)
-            {
-                item.AddResource(amountToAdd);
-                PlayRefillFeedback();
-            }
+            item.AddResource(item.MaxResource - item.CurrentResource);
+            PlayRefillFeedback();
         }
         else
         {
-            // Start continuous refill
-            isRefilling = true;
-            lastRefillTime = Time.time - refillRate; // Allow immediate first tick
-            PlayRefillFeedback();
-            lastSoundTime = Time.time; // Sound already played in feedback, wait for next interval
+            // Continuous refill driven by item's bob animation
+            item.StartRefillHover(this, hoverHeight);
         }
     }
 
@@ -117,9 +89,18 @@ public class ProjectileRefill : MonoBehaviour
 
         if (holder == currentHolder)
         {
-            isRefilling = false;
-            currentHolder = null;
+            StopRefilling();
         }
+    }
+
+    private void StopRefilling()
+    {
+        if (currentItem != null)
+        {
+            currentItem.StopRefillHover();
+        }
+        currentItem = null;
+        currentHolder = null;
     }
 
     private ProjectileHoldableItem GetMatchingItem(ItemHolder holder)
@@ -141,7 +122,7 @@ public class ProjectileRefill : MonoBehaviour
         return item;
     }
 
-    private void PlayRefillFeedback()
+    public void PlayRefillFeedback()
     {
         // Pulse animation
         transform.DOScale(transform.localScale * pulseScale, pulseDuration / 2f)
@@ -171,7 +152,9 @@ public class ProjectileRefill : MonoBehaviour
 
     private void SpawnEffect(GameObject prefab)
     {
-        GameObject effect = Instantiate(prefab, transform.position, Quaternion.identity);
+        Vector3 spawnPos = refillEffectPosition != null ? refillEffectPosition.position : transform.position;
+        GameObject effect = Instantiate(prefab, spawnPos, Quaternion.identity);
+        effect.transform.localScale = Vector3.one * refillEffectScale;
 
         if (effect.TryGetComponent<ParticleSystem>(out var ps))
         {

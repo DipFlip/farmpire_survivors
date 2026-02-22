@@ -23,6 +23,14 @@ public class Enemy : MonoBehaviour
     [SerializeField] private float climbSpeed = 5f;
     [SerializeField] private float maxClimbHeight = 3f;
 
+    [Header("Wandering")]
+    [SerializeField] private float wanderRadius = 5f;
+    [SerializeField] private float wanderSpeed = 1.5f;
+    [SerializeField] private float minWanderTime = 2f;
+    [SerializeField] private float maxWanderTime = 4f;
+    [SerializeField] private float minIdleTime = 1f;
+    [SerializeField] private float maxIdleTime = 3f;
+
     [Header("Health")]
     [SerializeField] private float maxHealth = 100f;
     [SerializeField] private float currentHealth;
@@ -53,6 +61,10 @@ public class Enemy : MonoBehaviour
     [SerializeField] private float chopHitEffectScale = 0.5f;
 
     [Header("Attack Animation")]
+    [Tooltip("Delay before damage is applied when using Animator (tune to match the animation's hit moment)")]
+    [SerializeField] private float animatorHitDelay = 0.3f;
+    [Tooltip("Delay before scale-down after death animation starts")]
+    [SerializeField] private float deathAnimationDuration = 1f;
     [SerializeField] private float attackScaleForward = 1.3f;
     [SerializeField] private float attackScaleDuration = 0.15f;
 
@@ -66,6 +78,7 @@ public class Enemy : MonoBehaviour
     private float lastAttackTime;
     private Vector3 originalScale;
     private bool isDead = false;
+    private bool isAttacking = false;
     private float verticalVelocity;
 
     // Track damage dealt to current target
@@ -74,6 +87,24 @@ public class Enemy : MonoBehaviour
 
     // Climbing state
     private bool isBlocked;
+
+    // Wander state
+    private Vector3 spawnPosition;
+    private Vector3 wanderTarget;
+    private float wanderTimer;
+    private bool isWandering;
+
+    // Animator
+    [Header("Animator")]
+    [SerializeField] private Animator animator;
+    private bool hasAnimatorAttack;
+    private bool hasAnimatorIdle;
+    private bool hasAnimatorWalking;
+    private bool hasAnimatorDead;
+    private static readonly int IsAttackingHash = Animator.StringToHash("IsAttacking");
+    private static readonly int IsIdleHash = Animator.StringToHash("IsIdle");
+    private static readonly int IsWalkingHash = Animator.StringToHash("IsWalking");
+    private static readonly int IsDeadHash = Animator.StringToHash("IsDead");
 
     // Renderers for hit flash
     private Renderer[] renderers;
@@ -101,6 +132,34 @@ public class Enemy : MonoBehaviour
         }
 
         UpdateHealthSlider();
+
+        if (animator == null) animator = GetComponentInChildren<Animator>();
+
+        spawnPosition = transform.position;
+        PickWanderState();
+    }
+
+    private bool animatorScanned;
+
+    private void ScanAnimatorParameters()
+    {
+        if (animatorScanned) return;
+        if (animator == null) return;
+        if (animator.runtimeAnimatorController == null) return;
+        if (animator.parameterCount == 0) return;
+
+        animatorScanned = true;
+
+        foreach (var param in animator.parameters)
+        {
+            if (param.type != AnimatorControllerParameterType.Bool) continue;
+
+            if (param.name == "IsAttacking") hasAnimatorAttack = true;
+            else if (param.name == "IsIdle") hasAnimatorIdle = true;
+            else if (param.name == "IsWalking") hasAnimatorWalking = true;
+            else if (param.name == "IsDead") hasAnimatorDead = true;
+        }
+
     }
 
     private void UpdateHealthSlider()
@@ -113,10 +172,32 @@ public class Enemy : MonoBehaviour
     {
         if (isDead) return;
 
+        ScanAnimatorParameters();
         ApplyGravity();
         FindTarget();
-        MoveTowardTarget();
-        TryAttack();
+
+        bool isMoving;
+        if (targetPlant != null)
+        {
+            float dist = Vector3.Distance(transform.position, targetPlant.transform.position);
+            isMoving = dist > attackRange;
+            MoveTowardTarget();
+            TryAttack();
+        }
+        else
+        {
+            isMoving = isWandering;
+            Wander();
+        }
+
+        UpdateAnimatorState(isMoving);
+    }
+
+    private void UpdateAnimatorState(bool isMoving)
+    {
+        if (animator == null) return;
+        if (hasAnimatorIdle) animator.SetBool(IsIdleHash, !isMoving && !isAttacking);
+        if (hasAnimatorWalking) animator.SetBool(IsWalkingHash, isMoving && !isAttacking);
     }
 
     private void ApplyGravity()
@@ -139,21 +220,71 @@ public class Enemy : MonoBehaviour
         controller.Move(Vector3.up * verticalVelocity * Time.deltaTime);
     }
 
-    private void FindTarget()
+    private void Wander()
     {
-        // If we have a valid target plant, keep it
-        if (targetPlant != null && targetPlant.CurrentLevel > 0)
+        isBlocked = false;
+        wanderTimer -= Time.deltaTime;
+
+        if (wanderTimer <= 0f)
         {
+            PickWanderState();
+        }
+
+        if (!isWandering) return;
+
+        Vector3 direction = (wanderTarget - transform.position);
+        direction.y = 0f;
+
+        if (direction.sqrMagnitude < 0.5f)
+        {
+            // Reached wander target, go idle
+            isWandering = false;
+            wanderTimer = Random.Range(minIdleTime, maxIdleTime);
             return;
         }
 
-        // Find nearest plant
-        targetPlant = null;
-        targetFruit = null;
-        currentFruitDamage = 0f;
-        currentLevelDamage = 0f;
+        direction.Normalize();
+        controller.Move(direction * wanderSpeed * Time.deltaTime);
 
-        Plant[] plants = FindObjectsOfType<Plant>();
+        if (direction.sqrMagnitude > 0.01f)
+        {
+            transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(direction), 5f * Time.deltaTime);
+        }
+    }
+
+    private void PickWanderState()
+    {
+        isWandering = !isWandering;
+
+        if (isWandering)
+        {
+            Vector2 randomCircle = Random.insideUnitCircle * wanderRadius;
+            wanderTarget = spawnPosition + new Vector3(randomCircle.x, 0f, randomCircle.y);
+            wanderTarget.y = transform.position.y;
+            wanderTimer = Random.Range(minWanderTime, maxWanderTime);
+        }
+        else
+        {
+            wanderTimer = Random.Range(minIdleTime, maxIdleTime);
+        }
+    }
+
+    private void FindTarget()
+    {
+        // Clear invalid target
+        if (targetPlant != null && targetPlant.CurrentLevel <= 0)
+        {
+            targetPlant = null;
+            targetFruit = null;
+            currentFruitDamage = 0f;
+            currentLevelDamage = 0f;
+        }
+
+        // If we have a valid target, keep it
+        if (targetPlant != null) return;
+
+        // Find nearest plant within detection range
+        Plant[] plants = FindObjectsByType<Plant>(FindObjectsSortMode.None);
         float nearestDistance = detectionRange;
 
         foreach (Plant plant in plants)
@@ -337,6 +468,35 @@ public class Enemy : MonoBehaviour
 
     private void PlayAttackAnimation()
     {
+        if (hasAnimatorAttack)
+        {
+            PlayAnimatorAttack();
+        }
+        else
+        {
+            PlayScaleAttack();
+        }
+    }
+
+    private void PlayAnimatorAttack()
+    {
+        isAttacking = true;
+        animator.SetBool(IsAttackingHash, true);
+
+        // Apply damage at the hit moment, then reset the bool
+        DOVirtual.DelayedCall(animatorHitDelay, () =>
+        {
+            isAttacking = false;
+            ApplyAttackDamage();
+            if (animator != null)
+            {
+                animator.SetBool(IsAttackingHash, false);
+            }
+        });
+    }
+
+    private void PlayScaleAttack()
+    {
         // Scale forward (Z axis) from the back pivot by offsetting position
         transform.DOKill();
 
@@ -426,6 +586,11 @@ public class Enemy : MonoBehaviour
 
         isDead = true;
 
+        if (hasAnimatorDead && animator != null)
+        {
+            animator.SetBool(IsDeadHash, true);
+        }
+
         // Spawn death effect
         if (deathEffectPrefab != null)
         {
@@ -441,8 +606,10 @@ public class Enemy : MonoBehaviour
             }
         }
 
-        // Death animation then destroy
+        // Wait for death animation, then scale down and destroy
+        float delay = (hasAnimatorDead && animator != null) ? deathAnimationDuration : 0f;
         transform.DOScale(Vector3.zero, 0.3f)
+            .SetDelay(delay)
             .SetEase(Ease.InBack)
             .OnComplete(() => Destroy(gameObject));
     }
@@ -456,5 +623,10 @@ public class Enemy : MonoBehaviour
         // Attack range
         Gizmos.color = Color.red;
         Gizmos.DrawWireSphere(transform.position, attackRange);
+
+        // Wander radius
+        Gizmos.color = Color.cyan;
+        Vector3 center = Application.isPlaying ? spawnPosition : transform.position;
+        Gizmos.DrawWireSphere(center, wanderRadius);
     }
 }

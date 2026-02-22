@@ -30,7 +30,6 @@ public class SoundManager : MonoBehaviour
 
   public void PlaySound(AudioClip clip, float minPitch = 1f, float maxPitch = 1f)
   {
-    Debug.Log($"[SoundManager] PlaySound called - clip: {(clip != null ? clip.name : "NULL")}, effectsSource: {(effectsSource != null ? "OK" : "NULL")}, enabled: {isSoundEffectsEnabled}");
     if (clip != null && isSoundEffectsEnabled)
     {
       if (effectsSource == null)
@@ -39,7 +38,7 @@ public class SoundManager : MonoBehaviour
         return;
       }
       float pitch = Random.Range(minPitch, maxPitch);
-      Debug.Log($"[SoundManager] Playing '{clip.name}' with pitch {pitch:F2}, volume: {effectsSource.volume}, mute: {effectsSource.mute}, AudioListener exists: {FindAnyObjectByType<AudioListener>() != null}");
+      // Debug.Log($"[SoundManager] Playing '{clip.name}' with pitch {pitch:F2}, volume: {effectsSource.volume}, mute: {effectsSource.mute}, AudioListener exists: {FindAnyObjectByType<AudioListener>() != null}");
       effectsSource.pitch = pitch;
       effectsSource.PlayOneShot(clip, 1f);
     }

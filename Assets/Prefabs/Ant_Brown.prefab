@@ -382,15 +382,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: c76e1dd902d7cfe488a45d500f98d871, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 7.8
+      value: 0.76052576
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: c76e1dd902d7cfe488a45d500f98d871, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0
+      value: -0.0000011289308
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: c76e1dd902d7cfe488a45d500f98d871, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 3.16
+      value: 7.8601146
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: c76e1dd902d7cfe488a45d500f98d871, type: 3}
       propertyPath: m_LocalRotation.w
@@ -453,6 +453,11 @@ PrefabInstance:
       insertIndex: -1
       addedObject: {fileID: 1376290486953677644}
   m_SourcePrefab: {fileID: 100100000, guid: c76e1dd902d7cfe488a45d500f98d871, type: 3}
+--- !u!95 &3951791427433019689 stripped
+Animator:
+  m_CorrespondingSourceObject: {fileID: 5866666021909216657, guid: c76e1dd902d7cfe488a45d500f98d871, type: 3}
+  m_PrefabInstance: {fileID: 7475132005975622840}
+  m_PrefabAsset: {fileID: 0}
 --- !u!4 &6933214150091465555 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: c76e1dd902d7cfe488a45d500f98d871, type: 3}
@@ -521,18 +526,23 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e4c79eab82fc84fe283432e7c7cd360e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Enemy
-  moveSpeed: 3
-  detectionRange: 20
-  attackRange: 1.5
+  moveSpeed: 1.4
+  detectionRange: 9.4
+  attackRange: 1.34
   gravity: -15
   climbSpeed: 1
   maxClimbHeight: 3
+  wanderRadius: 4.93
+  wanderSpeed: 1.5
+  minWanderTime: 2.52
+  maxWanderTime: 4.96
+  minIdleTime: 0.55
+  maxIdleTime: 2.51
   maxHealth: 100
   currentHealth: 0
   healthSlider: {fileID: 1738253528538113983}
   attackDamage: 10
   attackCooldown: 1
-  attackEffectCooldown: 3
   fruitHealth: 20
   plantLevelHealth: 50
   waterDamageMultiplier: 8
@@ -541,7 +551,9 @@ MonoBehaviour:
   attackEffectPrefab: {fileID: 763799897560185588, guid: c9b1a010f054449c7b200be8d475afe8, type: 3}
   chopHitEffectPrefab: {fileID: 8525990746615576120, guid: 6ad5ec40a480a4fdeb58c311117eea81, type: 3}
   chopHitEffectScale: 0.5
+  animatorHitDelay: 0.3
   attackScaleForward: 1.3
   attackScaleDuration: 0.15
   hitFlashDuration: 0.1
   hitColor: {r: 1, g: 0, b: 0, a: 1}
+  animator: {fileID: 3951791427433019689}

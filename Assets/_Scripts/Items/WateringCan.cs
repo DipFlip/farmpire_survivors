@@ -90,7 +90,7 @@ public class WateringCan : ProjectileHoldableItem
 
         UpdateOrbitPosition();
         UpdateRotation();
-        FindClosestTarget(); // Use our override
+        if (!IsRefilling) FindClosestTarget();
 
         if (currentTarget != null && Time.time >= lastFireTime + (1f / fireRate))
         {
