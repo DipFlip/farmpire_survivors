@@ -288,7 +288,8 @@ public class Enemy : MonoBehaviour
     {
         if (attackEffectPrefab == null || targetPlant == null) return;
 
-        GameObject effect = Instantiate(attackEffectPrefab, targetPlant.transform.position, Quaternion.identity);
+        Vector3 midpoint = (transform.position + targetPlant.transform.position) / 2f;
+        GameObject effect = Instantiate(attackEffectPrefab, midpoint, Quaternion.identity);
 
         if (effect.TryGetComponent<ParticleSystem>(out var ps))
         {
