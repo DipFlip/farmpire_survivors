@@ -134,6 +134,7 @@ public abstract class MeleeHoldableItem : HoldableItemBase
         // Visual and audio feedback
         PlayPulse();
         PlayActionSound();
+        if (CameraShake.Instance != null) CameraShake.Instance.Shake();
     }
 
     /// <summary>

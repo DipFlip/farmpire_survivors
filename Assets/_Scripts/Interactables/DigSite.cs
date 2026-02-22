@@ -135,6 +135,7 @@ public class DigSite : MonoBehaviour, ITargetable
         currentDig = 0f;
         UpdateVisuals();
         SpawnEffect(digCompleteEffectPrefab);
+        if (CameraShake.Instance != null) CameraShake.Instance.Shake();
     }
 
     private void SpawnPlant()

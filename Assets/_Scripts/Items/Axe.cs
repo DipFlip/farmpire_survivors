@@ -56,6 +56,7 @@ public class Axe : MeleeHoldableItem
 
                 PlayPulse();
                 PlayActionSound();
+                if (CameraShake.Instance != null) CameraShake.Instance.Shake();
             }
         }
     }

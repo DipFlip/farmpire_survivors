@@ -266,6 +266,7 @@ public class Plant : MonoBehaviour, ITargetable
         // Spawn level up effect and sound
         SpawnLevelUpEffect();
         PlayLevelUpSound();
+        if (CameraShake.Instance != null) CameraShake.Instance.Shake();
     }
 
     private void SpawnMaxLevelAndWatch()

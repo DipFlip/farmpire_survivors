@@ -525,11 +525,14 @@ MonoBehaviour:
   detectionRange: 20
   attackRange: 1.5
   gravity: -15
+  climbSpeed: 1
+  maxClimbHeight: 3
   maxHealth: 100
   currentHealth: 0
   healthSlider: {fileID: 1738253528538113983}
   attackDamage: 10
   attackCooldown: 1
+  attackEffectCooldown: 3
   fruitHealth: 20
   plantLevelHealth: 50
   waterDamageMultiplier: 8

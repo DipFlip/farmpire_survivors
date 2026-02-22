@@ -200,6 +200,7 @@ public class DepositStation : MonoBehaviour
         UpdateVisuals();
         SpawnCompletePrefab();
         OnDepositComplete?.Invoke();
+        if (CameraShake.Instance != null) CameraShake.Instance.Shake();
 
         if (repeatable)
         {

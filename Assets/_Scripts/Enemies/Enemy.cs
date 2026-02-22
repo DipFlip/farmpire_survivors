@@ -20,6 +20,8 @@ public class Enemy : MonoBehaviour
     [SerializeField] private float detectionRange = 20f;
     [SerializeField] private float attackRange = 1.5f;
     [SerializeField] private float gravity = -15f;
+    [SerializeField] private float climbSpeed = 5f;
+    [SerializeField] private float maxClimbHeight = 3f;
 
     [Header("Health")]
     [SerializeField] private float maxHealth = 100f;
@@ -70,6 +72,9 @@ public class Enemy : MonoBehaviour
     private float currentFruitDamage;
     private float currentLevelDamage;
 
+    // Climbing state
+    private bool isBlocked;
+
     // Renderers for hit flash
     private Renderer[] renderers;
     private Color[] originalColors;
@@ -116,6 +121,12 @@ public class Enemy : MonoBehaviour
 
     private void ApplyGravity()
     {
+        if (isBlocked)
+        {
+            verticalVelocity = 0f;
+            return;
+        }
+
         if (controller.isGrounded)
         {
             verticalVelocity = -2f;
@@ -160,18 +171,36 @@ public class Enemy : MonoBehaviour
 
     private void MoveTowardTarget()
     {
-        if (targetPlant == null) return;
+        if (targetPlant == null)
+        {
+            isBlocked = false;
+            return;
+        }
 
         float distanceToTarget = Vector3.Distance(transform.position, targetPlant.transform.position);
 
         // Stop when in attack range
-        if (distanceToTarget <= attackRange) return;
+        if (distanceToTarget <= attackRange)
+        {
+            isBlocked = false;
+            return;
+        }
 
         // Move toward target
         Vector3 direction = (targetPlant.transform.position - transform.position).normalized;
         direction.y = 0f;
 
-        controller.Move(direction * moveSpeed * Time.deltaTime);
+        Vector3 move = direction * moveSpeed * Time.deltaTime;
+
+        // Climb upward when blocked by an obstacle, but cap height
+        float heightAboveTarget = transform.position.y - targetPlant.transform.position.y;
+        if (isBlocked && heightAboveTarget < maxClimbHeight)
+        {
+            move.y = climbSpeed * Time.deltaTime;
+        }
+
+        CollisionFlags flags = controller.Move(move);
+        isBlocked = (flags & CollisionFlags.Sides) != 0;
 
         // Face movement direction
         if (direction.sqrMagnitude > 0.01f)
@@ -196,8 +225,13 @@ public class Enemy : MonoBehaviour
 
     private void PerformAttack()
     {
-        // Play attack animation (scale forward)
         PlayAttackAnimation();
+    }
+
+    private void ApplyAttackDamage()
+    {
+        if (targetPlant == null) return;
+
         SpawnAttackEffect();
 
         // Priority 1: Eat fruits if plant has active harvest
@@ -317,12 +351,14 @@ public class Enemy : MonoBehaviour
         Vector3 startPos = transform.position;
         Vector3 attackPos = startPos + transform.forward * forwardOffset;
 
-        // Scale and move forward together
+        // Scale and move forward together, apply damage + effect at peak
         transform.DOScale(attackScale, attackScaleDuration).SetEase(Ease.OutQuad);
         transform.DOMove(attackPos, attackScaleDuration)
             .SetEase(Ease.OutQuad)
             .OnComplete(() =>
             {
+                ApplyAttackDamage();
+
                 // Return to original
                 transform.DOScale(originalScale, attackScaleDuration).SetEase(Ease.InQuad);
                 transform.DOMove(startPos, attackScaleDuration).SetEase(Ease.InQuad);
